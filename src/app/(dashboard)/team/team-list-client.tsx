@@ -1,0 +1,562 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import {
+  CalendarDays,
+  CircleDot,
+  ExternalLink,
+  Filter,
+  Link2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
+
+import { buttonVariants } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+
+import { createTeamMemberQuick, deleteTeamMember, updateTeamMember } from "./actions";
+
+type TeamRow = {
+  id: string;
+  name: string;
+  role: string;
+  bio: string | null;
+  avatarUrl: string | null;
+  updatedAt: string;
+  createdAt: string;
+};
+
+type TeamDraft = {
+  name: string;
+  role: string;
+  bio: string;
+  avatarUrl: string;
+};
+
+const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
+
+export function TeamListClient({
+  initialMembers,
+  initialFullViewMemberId,
+  initialIsFullTeamView,
+}: {
+  initialMembers: TeamRow[];
+  initialFullViewMemberId: string | null;
+  initialIsFullTeamView: boolean;
+}) {
+  const router = useRouter();
+  const [members, setMembers] = useState(initialMembers);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<TeamDraft | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
+  const [isPending, startTransition] = useTransition();
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const fullViewMemberId = initialFullViewMemberId;
+  const isFullTeamView = initialIsFullTeamView;
+
+  const allRoles = useMemo(
+    () => Array.from(new Set(members.map((m) => m.role || "Editor"))).sort(),
+    [members]
+  );
+
+  const filtered = useMemo(() => {
+    return members.filter((member) => {
+      const role = member.role || "Editor";
+      const q = searchQuery.trim().toLowerCase();
+      const roleOk = roleFilter.length === 0 || roleFilter.includes(role);
+      const searchOk =
+        q.length === 0 ||
+        member.name.toLowerCase().includes(q) ||
+        role.toLowerCase().includes(q) ||
+        (member.bio ?? "").toLowerCase().includes(q);
+      return roleOk && searchOk;
+    });
+  }, [members, searchQuery, roleFilter]);
+
+  const selected = useMemo(
+    () => members.find((member) => member.id === selectedId) ?? null,
+    [members, selectedId]
+  );
+
+  useEffect(() => {
+    if (!selected) {
+      setDraft(null);
+      return;
+    }
+    setDraft({
+      name: selected.name,
+      role: selected.role || "Editor",
+      bio: selected.bio ?? "",
+      avatarUrl: selected.avatarUrl ?? "",
+    });
+  }, [selected]);
+
+  useEffect(() => {
+    if (filtered.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    setActiveIndex((prev) => Math.min(prev, filtered.length - 1));
+  }, [filtered.length]);
+
+  useEffect(() => {
+    rowRefs.current[activeIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeIndex]);
+
+  useEffect(() => {
+    if (!fullViewMemberId) return;
+    const idx = members.findIndex((member) => member.id === fullViewMemberId);
+    if (idx >= 0) {
+      setSelectedId(fullViewMemberId);
+      setActiveIndex(idx);
+    }
+  }, [fullViewMemberId, members]);
+
+  useEffect(() => {
+    function isTypingTarget(target: EventTarget | null): boolean {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName.toLowerCase();
+      return (
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        target.isContentEditable
+      );
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (isTypingTarget(event.target)) return;
+      if (filtered.length === 0) return;
+
+      if (selectedId) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (!isFullTeamView) closePanelWithAutosave();
+          return;
+        }
+        if (event.key === "ArrowDown" || event.key === "Tab") {
+          event.preventDefault();
+          moveOpenedSelection(1);
+          return;
+        }
+        if (event.key === "ArrowUp") {
+          event.preventDefault();
+          moveOpenedSelection(-1);
+          return;
+        }
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key === "Tab") {
+        event.preventDefault();
+        setActiveIndex((prev) => (prev + 1) % filtered.length);
+        return;
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        setSelectedId(filtered[activeIndex].id);
+        setError(null);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeIndex, filtered, selectedId, selected, draft, isFullTeamView]);
+
+  async function persistDraft(
+    selectedSnapshot: TeamRow | null = selected,
+    draftSnapshot: TeamDraft | null = draft
+  ) {
+    if (!selectedSnapshot || !draftSnapshot) return true;
+    const unchanged =
+      draftSnapshot.name.trim() === selectedSnapshot.name &&
+      draftSnapshot.role.trim() === (selectedSnapshot.role ?? "Editor") &&
+      draftSnapshot.bio.trim() === (selectedSnapshot.bio ?? "") &&
+      draftSnapshot.avatarUrl.trim() === (selectedSnapshot.avatarUrl ?? "");
+    if (unchanged) return true;
+
+    const formData = new FormData();
+    formData.set("id", selectedSnapshot.id);
+    formData.set("name", draftSnapshot.name);
+    formData.set("role", draftSnapshot.role);
+    formData.set("bio", draftSnapshot.bio);
+    formData.set("avatarUrl", draftSnapshot.avatarUrl);
+
+    const result = await updateTeamMember(formData);
+    if (!result.ok) {
+      setError(result.error);
+      return false;
+    }
+    setMembers((prev) =>
+      prev.map((member) => (member.id === result.member.id ? result.member : member))
+    );
+    setError(null);
+    return true;
+  }
+
+  function closePanelWithAutosave() {
+    const selectedSnapshot = selected;
+    const draftSnapshot = draft;
+    setSelectedId(null);
+    startTransition(async () => {
+      await persistDraft(selectedSnapshot, draftSnapshot);
+    });
+  }
+
+  function moveOpenedSelection(delta: 1 | -1) {
+    if (!selectedId || filtered.length === 0) return;
+
+    const currentIdx = filtered.findIndex((member) => member.id === selectedId);
+    if (currentIdx < 0) return;
+
+    const nextIdx = (currentIdx + delta + filtered.length) % filtered.length;
+    const nextMember = filtered[nextIdx];
+
+    const selectedSnapshot = selected;
+    const draftSnapshot = draft;
+
+    setActiveIndex(nextIdx);
+    setSelectedId(nextMember.id);
+    setError(null);
+
+    startTransition(async () => {
+      await persistDraft(selectedSnapshot, draftSnapshot);
+    });
+  }
+
+  function openMemberFullView(member: TeamRow) {
+    router.push(`/team?memberId=${encodeURIComponent(member.id)}&teamView=full`);
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-7xl gap-6 p-6">
+      <div
+        className={cn(
+          "min-w-0 flex-1 transition-all duration-300 ease-in-out",
+          selected && !isFullTeamView ? "mr-0" : ""
+        )}
+      >
+        <div className={cn("flex items-start justify-between gap-3", isFullTeamView && "hidden")}>
+          <div>
+            <h1 className="font-heading text-3xl font-semibold tracking-tight">Team</h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {filtered.length} shown / {members.length} team members
+            </p>
+          </div>
+          <button
+            type="button"
+            className={cn(buttonVariants({ size: "lg" }), "gap-2")}
+            onClick={() => {
+              startTransition(async () => {
+                const result = await createTeamMemberQuick();
+                if (!result.ok) return;
+                setMembers((prev) => [result.member, ...prev]);
+                setSelectedId(result.member.id);
+                setError(null);
+              });
+            }}
+            disabled={isPending}
+          >
+            <Plus className="size-4" />
+            {isPending ? "Creating..." : "Create New"}
+          </button>
+        </div>
+
+        <div className={cn("mt-5 flex flex-col gap-3 sm:flex-row", isFullTeamView && "hidden")}>
+          <div className="relative flex-1">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input
+              placeholder="Search team..."
+              className="h-10 pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button
+                  type="button"
+                  className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "gap-2")}
+                />
+              }
+            >
+              <Filter className="size-4" />
+              Filter
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="text-muted-foreground px-1.5 py-1 text-xs font-medium">Role</div>
+              {allRoles.map((role) => (
+                <DropdownMenuCheckboxItem
+                  key={role}
+                  checked={roleFilter.includes(role)}
+                  onCheckedChange={(checked) =>
+                    setRoleFilter((prev) =>
+                      checked ? [...prev, role] : prev.filter((r) => r !== role)
+                    )
+                  }
+                >
+                  {role}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setRoleFilter([])}>Clear filters</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <Card size="sm" className={cn("mt-4", isFullTeamView && "hidden")}>
+          <CardContent className="px-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="px-5 text-xs tracking-wide text-muted-foreground">NAME</TableHead>
+                  <TableHead className="px-5 text-xs tracking-wide text-muted-foreground">ROLE</TableHead>
+                  <TableHead className="px-5 text-xs tracking-wide text-muted-foreground">BIO</TableHead>
+                  <TableHead className="px-5 text-xs tracking-wide text-muted-foreground">DATE</TableHead>
+                  <TableHead className="px-5" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((member, idx) => (
+                  <TableRow
+                    key={member.id}
+                    ref={(el) => {
+                      rowRefs.current[idx] = el;
+                    }}
+                    className={cn(
+                      "cursor-pointer",
+                      activeIndex === idx && "bg-muted/60",
+                      selectedId === member.id && "bg-muted"
+                    )}
+                    onClick={() => {
+                      setActiveIndex(idx);
+                      setSelectedId(member.id);
+                      setError(null);
+                    }}
+                    onDoubleClick={() => {
+                      setActiveIndex(idx);
+                      setSelectedId(member.id);
+                      setError(null);
+                    }}
+                  >
+                    <TableCell className="px-5 py-3 font-medium">{member.name}</TableCell>
+                    <TableCell className="px-5 py-3 text-muted-foreground">{member.role}</TableCell>
+                    <TableCell className="max-w-[320px] truncate px-5 py-3 text-muted-foreground">
+                      {member.bio ?? "-"}
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-muted-foreground">
+                      {dateFmt.format(new Date(member.updatedAt))}
+                    </TableCell>
+                    <TableCell className="px-5 py-3 text-right text-muted-foreground">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <button
+                              type="button"
+                              className={cn(
+                                buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                                "text-muted-foreground"
+                              )}
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          }
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedId(member.id);
+                              setError(null);
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                            Edit item
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              startTransition(async () => {
+                                const result = await deleteTeamMember(member.id);
+                                if (!result.ok) {
+                                  setError(result.error);
+                                  return;
+                                }
+                                setMembers((prev) => prev.filter((m) => m.id !== member.id));
+                                if (selectedId === member.id) setSelectedId(null);
+                                setError(null);
+                              });
+                            }}
+                          >
+                            <Trash2 className="size-4" />
+                            Delete item
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {selected && !isFullTeamView ? (
+        <button
+          type="button"
+          aria-label="Close editor"
+          className="fixed inset-0 z-20 bg-transparent"
+          onClick={closePanelWithAutosave}
+        />
+      ) : null}
+
+      <aside
+        className={cn(
+          "bg-background/95 border-border top-16 right-0 z-30 border-l px-6 py-7 backdrop-blur transition-all duration-300 ease-in-out",
+          isFullTeamView
+            ? "relative mt-4 h-auto w-full rounded-xl border shadow-none"
+            : "fixed h-[calc(100dvh-4rem)] w-[390px] shadow-sm",
+          selected ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-10 opacity-0"
+        )}
+      >
+        {selected ? (
+          <>
+            <div className="mb-7 flex items-center justify-between">
+              <h2 className="font-heading text-4xl font-semibold tracking-tight">
+                {selected.name || "Name"}
+              </h2>
+              <div className="flex items-center gap-1">
+                {!isFullTeamView ? (
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
+                    onClick={() => openMemberFullView(selected)}
+                    title="Open full view"
+                  >
+                    <ExternalLink className="size-4" />
+                  </button>
+                ) : null}
+                {!isFullTeamView ? (
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon-sm" }))}
+                    onClick={closePanelWithAutosave}
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+                <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <CalendarDays className="size-3.5" />
+                  Date
+                </label>
+                <p className="text-sm">{dateFmt.format(new Date(selected.updatedAt))}</p>
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+                <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <User className="size-3.5" />
+                  Name
+                </label>
+                <Input
+                  value={draft?.name ?? ""}
+                  required
+                  className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+                  onChange={(e) => setDraft((prev) => (prev ? { ...prev, name: e.target.value } : prev))}
+                />
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+                <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <CircleDot className="size-3.5" />
+                  Role
+                </label>
+                <Input
+                  value={draft?.role ?? ""}
+                  className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+                  onChange={(e) => setDraft((prev) => (prev ? { ...prev, role: e.target.value } : prev))}
+                />
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+                <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                  <Link2 className="size-3.5" />
+                  Avatar URL
+                </label>
+                <Input
+                  value={draft?.avatarUrl ?? ""}
+                  className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+                  onChange={(e) =>
+                    setDraft((prev) => (prev ? { ...prev, avatarUrl: e.target.value } : prev))
+                  }
+                />
+              </div>
+
+              <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+                <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+                  <CircleDot className="size-3.5" />
+                  Bio
+                </label>
+                <textarea
+                  value={draft?.bio ?? ""}
+                  rows={5}
+                  className="border-input bg-background min-h-[7rem] w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  onChange={(e) => setDraft((prev) => (prev ? { ...prev, bio: e.target.value } : prev))}
+                />
+              </div>
+
+              {error ? <p className="text-destructive text-xs">{error}</p> : null}
+              {isPending ? (
+                <p className="text-muted-foreground px-2 pt-2 text-xs">Saving changes…</p>
+              ) : null}
+            </div>
+          </>
+        ) : null}
+      </aside>
+    </div>
+  );
+}
+
