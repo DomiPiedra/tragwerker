@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -8,9 +16,9 @@ import {
   ExternalLink,
   Filter,
   Link2,
+  Loader2,
   MoreHorizontal,
   Pencil,
-  Plus,
   Search,
   Trash2,
   X,
@@ -35,8 +43,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  CONTENT_FULL_VIEW_RENAME_ID,
+  ContentFullViewShell,
+  contentFullViewTitleClassName,
+  focusContentFullViewRename,
+} from "@/components/content-full-view-shell";
+import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import {
+  contentPreviewPanelClassName,
+  useContentRowClickHandlers,
+  usePreviewPanelResize,
+} from "@/lib/content-preview-panel";
+import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 import { Editor } from "@/components/editor/editor";
+
+import { generateBlogPostContent } from "@/app/actions/generateBlogPostContent";
+import { popBlogContentGeneration } from "@/lib/blog/command-bar-generation";
+
+import { ContentCreateButton } from "@/components/content-create-button";
+import { useContentCreateListener } from "@/hooks/use-content-create-listener";
+import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
 import { createBlogPostQuick, deleteBlogPost, updateBlogPost } from "./actions";
 
@@ -89,10 +117,12 @@ export function BlogListClient({
   initialPosts,
   initialFullViewPostId,
   initialIsFullBlogView,
+  initialGenerateContent = false,
 }: {
   initialPosts: BlogRow[];
   initialFullViewPostId: string | null;
   initialIsFullBlogView: boolean;
+  initialGenerateContent?: boolean;
 }) {
   const router = useRouter();
   const [posts, setPosts] = useState(initialPosts);
@@ -104,12 +134,19 @@ export function BlogListClient({
   const [isPending, startTransition] = useTransition();
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [panelWidth, setPanelWidth] = useState(390);
+  const { isResizing, startPanelResize, panelStyle } = usePreviewPanelResize();
   const [showSavedHint, setShowSavedHint] = useState(false);
   const savedHintTimerRef = useRef<number | null>(null);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const generationStartedRef = useRef(false);
 
   const fullViewPostId = initialFullViewPostId;
   const isFullBlogView = initialIsFullBlogView;
+  const { schedulePreview, openFull } = useContentRowClickHandlers();
+  useTrackContentOpen(
+    "blogPost",
+    selectedId ?? (isFullBlogView ? fullViewPostId : null)
+  );
 
   const filtered = useMemo(() => {
     return posts.filter((post) => {
@@ -168,6 +205,61 @@ export function BlogListClient({
   }, [fullViewPostId, posts]);
 
   useEffect(() => {
+    if (!isFullBlogView || !fullViewPostId || !initialGenerateContent) return;
+    if (generationStartedRef.current) return;
+    const job = popBlogContentGeneration(fullViewPostId);
+    if (!job) return;
+
+    generationStartedRef.current = true;
+    setIsGeneratingContent(true);
+    setError(null);
+
+    void (async () => {
+      const result = await generateBlogPostContent({ postId: fullViewPostId, job });
+      if (!result.ok) {
+        setError(result.error);
+        setIsGeneratingContent(false);
+        router.replace(`/blog?postId=${encodeURIComponent(fullViewPostId)}&blogView=full`);
+        return;
+      }
+
+      let postRow: BlogRow | undefined;
+      setPosts((prev) => {
+        const next = prev.map((post) => {
+          if (post.id !== fullViewPostId) return post;
+          postRow = {
+            ...post,
+            content: result.contentHtml,
+            excerpt: result.excerpt ?? post.excerpt,
+          };
+          return postRow;
+        });
+        return next;
+      });
+
+      if (postRow) {
+        const nextDraft: BlogDraft = {
+          title: postRow.title,
+          slug: postRow.slug,
+          excerpt: postRow.excerpt ?? "",
+          content: result.contentHtml,
+          published: postRow.published,
+          publishedAt: toLocalInputValue(postRow.publishedAt),
+        };
+        setDraft(nextDraft);
+        startTransition(async () => {
+          const ok = await persistDraft(postRow!, nextDraft);
+          if (ok) triggerSavedHint();
+        });
+      }
+
+      setIsGeneratingContent(false);
+      router.replace(`/blog?postId=${encodeURIComponent(fullViewPostId)}&blogView=full`);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per command-bar navigation
+  }, [fullViewPostId, initialGenerateContent, isFullBlogView]);
+
+  useEffect(() => {
     function isTypingTarget(target: EventTarget | null): boolean {
       if (!(target instanceof HTMLElement)) return false;
       const tag = target.tagName.toLowerCase();
@@ -208,6 +300,13 @@ export function BlogListClient({
         if (event.key === "ArrowUp") {
           event.preventDefault();
           moveOpenedSelection(-1);
+          return;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          if (!isFullBlogView && selected) {
+            openPostFullView(selected);
+          }
           return;
         }
         return;
@@ -298,34 +397,212 @@ export function BlogListClient({
     });
   }
 
+  function selectPostPreview(postId: string, idx: number) {
+    setActiveIndex(idx);
+    setError(null);
+    setSelectedId(postId);
+    if (isFullBlogView) {
+      router.push(`/blog?postId=${encodeURIComponent(postId)}`);
+    }
+  }
+
   function openPostFullView(post: BlogRow) {
     router.push(`/blog?postId=${encodeURIComponent(post.id)}&blogView=full`);
   }
 
-  function startPanelResize(event: React.MouseEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleQuickCreate = useCallback(() => {
+    startTransition(async () => {
+      const result = await createBlogPostQuick();
+      if (!result.ok) return;
+      setPosts((prev) => [result.post, ...prev]);
+      setError(null);
+      openPostFullView(result.post);
+    });
+  }, [router]);
 
-    const minWidth = 320;
-    const maxWidth = Math.max(520, window.innerWidth - 220);
+  useContentCreateListener(CONTENT_CREATE_EVENTS.blog, handleQuickCreate);
 
-    function onMouseMove(moveEvent: MouseEvent) {
-      const nextWidth = window.innerWidth - moveEvent.clientX;
-      const clamped = Math.max(minWidth, Math.min(maxWidth, nextWidth));
-      setPanelWidth(clamped);
-    }
+  function exitFullView() {
+    const selectedSnapshot = selected;
+    const draftSnapshot = draft;
+    setSelectedId(null);
+    setError(null);
+    startTransition(async () => {
+      await persistDraft(selectedSnapshot, draftSnapshot);
+      router.push("/blog");
+    });
+  }
 
-    function onMouseUp() {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    }
+  function handleFullViewDelete() {
+    if (!selected) return;
+    startTransition(async () => {
+      const result = await deleteBlogPost(selected.id);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSelectedId(null);
+      router.push("/blog");
+    });
+  }
 
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
+  const savedHint = (
+    <div
+      className={cn(
+        "pointer-events-none fixed bottom-4 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-zinc-200/70 bg-white/90 px-3 py-1.5 text-xs text-zinc-700 shadow-sm backdrop-blur-sm transition-all duration-300 dark:border-zinc-700/70 dark:bg-zinc-900/90 dark:text-zinc-200",
+        showSavedHint ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+      )}
+    >
+      Saved
+    </div>
+  );
+
+  function renderBlogMetadataFields(layout: "panel" | "inline" = "inline"): ReactNode {
+    if (!selected) return null;
+
+    const labelClass =
+      layout === "panel"
+        ? "text-muted-foreground mb-1.5 flex items-center gap-2 text-xs font-medium"
+        : "text-muted-foreground flex items-center gap-2 text-sm";
+
+    const fieldBlock = layout === "panel" ? "space-y-1" : "grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5";
+    const excerptBlock =
+      layout === "panel"
+        ? "space-y-1"
+        : "grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5";
+
+    return (
+      <>
+        <div className={fieldBlock}>
+          <label className={labelClass}>
+            <CalendarDays className="size-3.5" />
+            Updated
+          </label>
+          <p className="text-sm">{dateFmt.format(new Date(selected.updatedAt))}</p>
+        </div>
+
+        <div className={fieldBlock}>
+          <label className={labelClass}>
+            <Link2 className="size-3.5" />
+            Slug
+          </label>
+          <Input
+            value={draft?.slug ?? ""}
+            required
+            className={cn(
+              "h-9 text-sm",
+              layout === "panel"
+                ? "rounded-lg border-black/10 bg-[#f5f5f5]"
+                : "h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+            )}
+            onChange={(e) => setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))}
+          />
+        </div>
+
+        <div className={fieldBlock}>
+          <label className={labelClass}>
+            <CircleDot className="size-3.5" />
+            Status
+          </label>
+          <select
+            value={draft?.published ? "published" : "draft"}
+            onChange={(e) =>
+              setDraft((prev) =>
+                prev ? { ...prev, published: e.target.value === "published" } : prev
+              )
+            }
+            className={cn(
+              "h-9 w-full rounded-lg border-0 px-3 text-sm font-medium shadow-none outline-none appearance-none",
+              draft?.published ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-700",
+              layout === "inline" && "h-8 w-fit rounded-full pr-8"
+            )}
+          >
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+        </div>
+
+        <div className={fieldBlock}>
+          <label className={labelClass}>
+            <CalendarDays className="size-3.5" />
+            Published At
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="date"
+              value={splitLocalDateTime(draft?.publishedAt ?? "").date}
+              className="h-9 w-full min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 sm:w-fit sm:flex-none [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
+              onChange={(e) =>
+                setDraft((prev) => {
+                  if (!prev) return prev;
+                  const current = splitLocalDateTime(prev.publishedAt);
+                  return {
+                    ...prev,
+                    publishedAt: mergeLocalDateTime(e.target.value, current.time),
+                  };
+                })
+              }
+            />
+            <Input
+              type="time"
+              value={splitLocalDateTime(draft?.publishedAt ?? "").time}
+              className="h-9 w-full min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 sm:w-fit sm:flex-none [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
+              onChange={(e) =>
+                setDraft((prev) => {
+                  if (!prev) return prev;
+                  const current = splitLocalDateTime(prev.publishedAt);
+                  return {
+                    ...prev,
+                    publishedAt: mergeLocalDateTime(current.date, e.target.value),
+                  };
+                })
+              }
+            />
+          </div>
+        </div>
+
+        <div className={excerptBlock}>
+          <label className={cn(labelClass, layout === "inline" && "pt-1")}>
+            <CircleDot className="size-3.5" />
+            Excerpt
+          </label>
+          <textarea
+            value={draft?.excerpt ?? ""}
+            rows={3}
+            className="border-input bg-background w-full rounded-lg border border-black/10 px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            onChange={(e) => setDraft((prev) => (prev ? { ...prev, excerpt: e.target.value } : prev))}
+          />
+        </div>
+      </>
+    );
+  }
+
+  function renderBlogEditorFields(): ReactNode {
+    if (!selected) return null;
+    return (
+      <div className="space-y-2">
+        {renderBlogMetadataFields("inline")}
+
+        <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+          <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+            <CircleDot className="size-3.5" />
+            Content
+          </label>
+          <Editor
+            value={draft?.content ?? ""}
+            onChange={(nextContent) =>
+              setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+            }
+            handleAIEdit={handleAIEdit}
+          />
+        </div>
+
+        {error ? <p className="text-destructive text-xs">{error}</p> : null}
+        {isPending ? (
+          <p className="text-muted-foreground px-2 pt-2 text-xs">Saving changes…</p>
+        ) : null}
+      </div>
+    );
   }
 
   function handleAIEdit(content: string) {
@@ -352,6 +629,65 @@ export function BlogListClient({
     };
   }, []);
 
+  if (isFullBlogView && selected) {
+    return (
+      <>
+        <ContentFullViewShell
+          title={draft?.title ?? selected.title}
+          onBack={exitFullView}
+          onRename={focusContentFullViewRename}
+          onDelete={handleFullViewDelete}
+          settingsContent={renderBlogMetadataFields("panel")}
+          seoContext={{
+            entityType: "blogPost",
+            entityId: selected.id,
+            title: draft?.title ?? selected.title,
+            content: [draft?.excerpt ?? "", draft?.content ?? ""].filter(Boolean).join("\n\n"),
+          }}
+        >
+          <div className="mx-auto w-full max-w-4xl">
+            <textarea
+              id={CONTENT_FULL_VIEW_RENAME_ID}
+              value={draft?.title ?? ""}
+              required
+              rows={1}
+              placeholder="Title"
+              className={contentFullViewTitleClassName}
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))
+              }
+            />
+            <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+              {isGeneratingContent ? (
+                <div
+                  className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/75 backdrop-blur-[2px]"
+                  aria-live="polite"
+                  aria-busy="true"
+                >
+                  <Loader2 className="text-muted-foreground size-10 animate-spin" />
+                  <p className="text-muted-foreground text-sm">Generating content…</p>
+                </div>
+              ) : null}
+              <Editor
+                value={draft?.content ?? ""}
+                onChange={(nextContent) =>
+                  setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+                }
+                handleAIEdit={handleAIEdit}
+                className="prose-premium-canvas"
+              />
+            </div>
+            {error ? <p className="text-destructive mt-4 text-xs">{error}</p> : null}
+            {isPending ? (
+              <p className="text-muted-foreground mt-2 text-xs">Saving changes…</p>
+            ) : null}
+          </div>
+        </ContentFullViewShell>
+        {savedHint}
+      </>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-7xl gap-6 p-6">
       <div
@@ -367,23 +703,11 @@ export function BlogListClient({
               {filtered.length} shown / {posts.length} total posts
             </p>
           </div>
-          <button
-            type="button"
-            className={cn(buttonVariants({ size: "lg" }), "gap-2")}
-            onClick={() => {
-              startTransition(async () => {
-                const result = await createBlogPostQuick();
-                if (!result.ok) return;
-                setPosts((prev) => [result.post, ...prev]);
-                setSelectedId(result.post.id);
-                setError(null);
-              });
-            }}
-            disabled={isPending}
-          >
-            <Plus className="size-4" />
-            {isPending ? "Creating..." : "Create New"}
-          </button>
+          <ContentCreateButton
+            label="New Blog"
+            isPending={isPending}
+            onClick={handleQuickCreate}
+          />
         </div>
 
         <div className={cn("mt-5 flex flex-col gap-3 sm:flex-row", isFullBlogView && "hidden")}>
@@ -459,15 +783,12 @@ export function BlogListClient({
                       activeIndex === idx && "bg-muted/60",
                       selectedId === post.id && "bg-muted"
                     )}
-                    onClick={() => {
-                      setActiveIndex(idx);
-                      setSelectedId(post.id);
-                      setError(null);
-                    }}
-                    onDoubleClick={() => {
-                      setActiveIndex(idx);
-                      setSelectedId(post.id);
-                      setError(null);
+                    onClick={() =>
+                      schedulePreview(() => selectPostPreview(post.id, idx))
+                    }
+                    onDoubleClick={(event) => {
+                      event.preventDefault();
+                      openFull(() => openPostFullView(post));
                     }}
                   >
                     <TableCell className="px-5 py-3 font-medium">{post.title}</TableCell>
@@ -552,22 +873,13 @@ export function BlogListClient({
 
       <aside
         className={cn(
-          "bg-background/95 border-border top-16 right-0 z-30 border-l px-6 py-7 backdrop-blur transition-all duration-300 ease-in-out",
-          isFullBlogView
-            ? "relative mt-4 h-auto w-full rounded-xl border shadow-none"
-            : "fixed h-[calc(100dvh-4rem)] shadow-sm",
-          selected ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-10 opacity-0"
+          contentPreviewPanelClassName("preview", Boolean(selected)),
+          isResizing && "!transition-none"
         )}
-        style={isFullBlogView ? undefined : { width: `${panelWidth}px` }}
+        style={panelStyle}
       >
         {selected && !isFullBlogView ? (
-          <div
-            role="separator"
-            aria-label="Resize editor panel"
-            aria-orientation="vertical"
-            className="absolute top-0 left-0 z-40 h-full w-2 -translate-x-1 cursor-ew-resize"
-            onMouseDown={startPanelResize}
-          />
+          <ContentPreviewResizeHandle onMouseDown={startPanelResize} />
         ) : null}
         {selected ? (
           <>
@@ -602,132 +914,11 @@ export function BlogListClient({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <CalendarDays className="size-3.5" />
-                  Updated
-                </label>
-                <p className="text-sm">{dateFmt.format(new Date(selected.updatedAt))}</p>
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <Link2 className="size-3.5" />
-                  Slug
-                </label>
-                <Input
-                  value={draft?.slug ?? ""}
-                  required
-                  className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-                  onChange={(e) => setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))}
-                />
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <CircleDot className="size-3.5" />
-                  Status
-                </label>
-                <select
-                  value={draft?.published ? "published" : "draft"}
-                  onChange={(e) =>
-                    setDraft((prev) =>
-                      prev ? { ...prev, published: e.target.value === "published" } : prev
-                    )
-                  }
-                  className={cn(
-                    "h-8 w-fit rounded-full border-0 px-4 pr-8 text-sm font-medium shadow-none outline-none appearance-none",
-                    draft?.published ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-700"
-                  )}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <CalendarDays className="size-3.5" />
-                  Published At
-                </label>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    type="date"
-                    value={splitLocalDateTime(draft?.publishedAt ?? "").date}
-                    className="h-9 w-fit rounded-full border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
-                    onChange={(e) =>
-                      setDraft((prev) => {
-                        if (!prev) return prev;
-                        const current = splitLocalDateTime(prev.publishedAt);
-                        return {
-                          ...prev,
-                          publishedAt: mergeLocalDateTime(e.target.value, current.time),
-                        };
-                      })
-                    }
-                  />
-                  <Input
-                    type="time"
-                    value={splitLocalDateTime(draft?.publishedAt ?? "").time}
-                    className="h-9 w-fit rounded-full border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-200 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
-                    onChange={(e) =>
-                      setDraft((prev) => {
-                        if (!prev) return prev;
-                        const current = splitLocalDateTime(prev.publishedAt);
-                        return {
-                          ...prev,
-                          publishedAt: mergeLocalDateTime(current.date, e.target.value),
-                        };
-                      })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
-                  <CircleDot className="size-3.5" />
-                  Excerpt
-                </label>
-                <textarea
-                  value={draft?.excerpt ?? ""}
-                  rows={3}
-                  className="border-input bg-background w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  onChange={(e) => setDraft((prev) => (prev ? { ...prev, excerpt: e.target.value } : prev))}
-                />
-              </div>
-
-              <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
-                <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
-                  <CircleDot className="size-3.5" />
-                  Content
-                </label>
-                <Editor
-                  value={draft?.content ?? ""}
-                  onChange={(nextContent) =>
-                    setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
-                  }
-                  handleAIEdit={handleAIEdit}
-                />
-              </div>
-
-              {error ? <p className="text-destructive text-xs">{error}</p> : null}
-              {isPending ? (
-                <p className="text-muted-foreground px-2 pt-2 text-xs">Saving changes…</p>
-              ) : null}
-            </div>
+            {renderBlogEditorFields()}
           </>
         ) : null}
       </aside>
-      <div
-        className={cn(
-          "pointer-events-none fixed bottom-4 left-1/2 z-[80] -translate-x-1/2 rounded-full border border-zinc-200/70 bg-white/90 px-3 py-1.5 text-xs text-zinc-700 shadow-sm backdrop-blur-sm transition-all duration-300 dark:border-zinc-700/70 dark:bg-zinc-900/90 dark:text-zinc-200",
-          showSavedHint ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
-        )}
-      >
-        Saved
-      </div>
+      {savedHint}
     </div>
   );
 }

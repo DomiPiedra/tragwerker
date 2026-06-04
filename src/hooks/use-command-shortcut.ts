@@ -1,6 +1,12 @@
 import { useEffect } from "react";
 
+import { usePlatformShortcutKeys } from "@/hooks/use-platform-shortcut-keys";
 import { useCommandBarStore } from "@/store/command-bar-store";
+
+/** Platform-aware keys for UI hints: ⌘ K (macOS) or Ctrl K (Windows/Linux). */
+export function useCommandShortcutKeys(): string[] {
+  return usePlatformShortcutKeys("K");
+}
 
 export function useCommandShortcut() {
   const open = useCommandBarStore((state) => state.open);
@@ -12,8 +18,9 @@ export function useCommandShortcut() {
     function onKeyDown(event: KeyboardEvent) {
       const pressedK = event.key.toLowerCase() === "k";
       const withMeta = event.metaKey || event.ctrlKey;
-      if (pressedK && withMeta) {
+      if (pressedK && withMeta && !event.shiftKey && !event.altKey) {
         event.preventDefault();
+        event.stopPropagation();
         if (isOpen) {
           close();
         } else {
@@ -28,7 +35,7 @@ export function useCommandShortcut() {
       }
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [close, isOpen, open, resetSessionState]);
 }

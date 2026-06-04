@@ -19,6 +19,7 @@ type CommandBarState = {
   semanticReasoning: string | null;
   semanticCache: Record<string, SemanticCachedResult>;
   open: () => void;
+  openWithQuery: (query: string) => void;
   close: () => void;
   setQuery: (query: string) => void;
   setActiveIndex: (index: number) => void;
@@ -51,6 +52,16 @@ export const useCommandBarStore = create<CommandBarState>((set) => ({
   semanticReasoning: null,
   semanticCache: {},
   open: () => set({ isOpen: true }),
+  openWithQuery: (query) =>
+    set({
+      isOpen: true,
+      query,
+      activeIndex: 0,
+      semanticLoading: false,
+      interpretedCommandId: null,
+      interpretedConfidence: null,
+      semanticReasoning: null,
+    }),
   close: () => set({ isOpen: false }),
   setQuery: (query) => set({ query }),
   setActiveIndex: (activeIndex) => set({ activeIndex }),

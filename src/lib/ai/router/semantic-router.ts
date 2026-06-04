@@ -1,4 +1,4 @@
-import { GeminiProvider } from "@/lib/ai/providers/gemini-provider";
+import { IntentProvider } from "@/lib/ai/providers/intent-provider";
 import type {
   AIProvider,
   SemanticRouterRequest,
@@ -15,5 +15,5 @@ export class SemanticRouter {
 }
 
 export function createSemanticRouter() {
-  return new SemanticRouter(new GeminiProvider());
+  return new SemanticRouter(new IntentProvider());
 }

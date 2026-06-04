@@ -5,9 +5,16 @@ export type CommandCategory =
   | "Settings"
   | "Quick Actions";
 
+import type { CommandAttachment } from "@/types/command-attachment";
+import type { CommandBarIntentPayload } from "@/types/command-intent";
+
 export type CommandContext = {
   close: () => void;
   navigate: (path: string) => void;
+  /** Files attached in the command bar (for AI / create flows). */
+  attachments?: CommandAttachment[];
+  /** Structured payload from AI intent (e.g. blog title + HTML content). */
+  intent?: CommandBarIntentPayload;
 };
 
 export type CommandDefinition = {

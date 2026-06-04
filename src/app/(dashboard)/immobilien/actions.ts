@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
 type PropertyStatus = "draft" | "active" | "sold";
 
@@ -61,6 +62,8 @@ export async function createPropertyQuick() {
 
   revalidatePath("/");
   revalidatePath("/immobilien");
+
+  scheduleContentSeoGeneration("property", property.id);
 
   return {
     ok: true as const,
@@ -135,6 +138,8 @@ export async function updateProperty(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/immobilien");
+
+  scheduleContentSeoGeneration("property", property.id);
 
   return {
     ok: true as const,

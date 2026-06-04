@@ -25,13 +25,14 @@ export type ContentFillSuggestion = {
 const CONTENT_SEARCH_DEBOUNCE_MS = 160;
 const MAX_FILL_SUGGESTIONS = 8;
 
-export function useCommandResults(): {
+export function useCommandResults(queryOverride?: string): {
   commands: CommandDefinition[];
   results: CommandSearchResult[];
   contentLoading: boolean;
   contentFillSuggestions: ContentFillSuggestion[];
 } {
-  const query = useCommandBarStore((state) => state.query);
+  const storeQuery = useCommandBarStore((state) => state.query);
+  const query = queryOverride ?? storeQuery;
   const recentIds = useCommandBarStore((state) => state.recentCommandIds);
   const pinnedIds = useCommandBarStore((state) => state.pinnedCommandIds);
 

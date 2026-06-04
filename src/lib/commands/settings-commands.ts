@@ -2,9 +2,9 @@ import type { CommandDefinition } from "@/types/command";
 
 export const settingsCommands: CommandDefinition[] = [
   {
-    id: "settings-open-modal",
+    id: "settings-open",
     title: "Open Settings",
-    description: "Open the centered settings popup",
+    description: "Open the settings page",
     category: "Settings",
     keywords: ["settings", "preferences", "users", "links"],
     aliases: ["open settings", "preferences"],

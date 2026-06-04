@@ -6,6 +6,7 @@ import { ProjectStatus } from "@/generated/prisma/enums";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
 function slugify(input: string): string {
   const s = input
@@ -97,6 +98,8 @@ export async function createPortfolioQuick() {
   revalidatePath("/");
   revalidatePath("/portfolio");
 
+  scheduleContentSeoGeneration("portfolioItem", item.id);
+
   return {
     ok: true as const,
     item: {
@@ -185,6 +188,8 @@ export async function updatePortfolioItem(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/portfolio");
+
+  scheduleContentSeoGeneration("portfolioItem", item.id);
 
   return {
     ok: true as const,

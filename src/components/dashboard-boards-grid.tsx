@@ -4,37 +4,27 @@ import Link from "next/link";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 
+import type { DashboardRecentBoard } from "@/lib/content-open-shared";
 import { cn } from "@/lib/utils";
 
-export type DashboardBoard = {
-  id: string;
-  title: string;
-  href: string;
-  updatedAt: string;
-  action: string;
-  previewCells: string[];
-};
-
-function formatActivityAgo(iso: string, action: string): string {
+function formatOpenedAgo(iso: string): string {
   const date = new Date(iso);
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / 60000);
-  const verb =
-    action === "created" ? "Created" : action === "deleted" ? "Deleted" : "Updated";
 
-  if (minutes < 1) return `${verb} just now`;
+  if (minutes < 1) return "Opened just now";
   if (minutes < 60) {
-    return `${verb} ${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+    return `Opened ${minutes} minute${minutes === 1 ? "" : "s"} ago`;
   }
   const hours = Math.floor(minutes / 60);
   if (hours < 24) {
-    return `${verb} ${hours} hour${hours === 1 ? "" : "s"} ago`;
+    return `Opened ${hours} hour${hours === 1 ? "" : "s"} ago`;
   }
   const days = Math.floor(hours / 24);
   if (days < 7) {
-    return `${verb} ${days} day${days === 1 ? "" : "s"} ago`;
+    return `Opened ${days} day${days === 1 ? "" : "s"} ago`;
   }
-  return `${verb} ${new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date)}`;
+  return `Opened ${new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date)}`;
 }
 
 function BoardPreviewGrid({ cells }: { cells: string[] }) {
@@ -58,25 +48,15 @@ export function DashboardBoardsGrid({
   allBoards,
   myBoards,
 }: {
-  allBoards: DashboardBoard[];
-  myBoards: DashboardBoard[];
+  allBoards: DashboardRecentBoard[];
+  myBoards: DashboardRecentBoard[];
 }) {
-  const [filter, setFilter] = useState<"all" | "mine">("all");
+  const [filter, setFilter] = useState<"all" | "mine">("mine");
   const boards = filter === "all" ? allBoards : myBoards;
 
   return (
     <section className="w-full space-y-5">
       <div className="flex items-center gap-5 text-sm">
-        <button
-          type="button"
-          onClick={() => setFilter("all")}
-          className={cn(
-            "font-medium transition-colors",
-            filter === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-          )}
-        >
-          All
-        </button>
         <button
           type="button"
           onClick={() => setFilter("mine")}
@@ -85,7 +65,17 @@ export function DashboardBoardsGrid({
             filter === "mine" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
           )}
         >
-          Mine
+          Recent
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("all")}
+          className={cn(
+            "font-medium transition-colors",
+            filter === "all" ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          Team
         </button>
       </div>
 
@@ -99,14 +89,17 @@ export function DashboardBoardsGrid({
 
         {boards.map((board) => (
           <Link
-            key={board.id}
+            key={`${board.pathLabel}-${board.openedAt}`}
             href={board.href}
             className="flex min-h-[220px] flex-col overflow-hidden rounded-2xl bg-[#efefef] transition-colors hover:bg-[#e6e6e6]"
           >
             <div className="px-4 pt-4 pb-1">
               <p className="truncate text-[14px] font-semibold tracking-[-0.02em]">{board.title}</p>
+              <p className="text-muted-foreground mt-0.5 truncate font-mono text-[12px] font-normal">
+                {board.pathLabel}
+              </p>
               <p className="text-muted-foreground mt-0.5 text-[13px] font-normal">
-                {formatActivityAgo(board.updatedAt, board.action)}
+                {formatOpenedAgo(board.openedAt)}
               </p>
             </div>
             <BoardPreviewGrid cells={board.previewCells} />
@@ -117,8 +110,8 @@ export function DashboardBoardsGrid({
       {boards.length === 0 ? (
         <p className="text-muted-foreground text-center text-sm">
           {filter === "mine"
-            ? "No activity from you yet. Create or edit content to see it here."
-            : "No activity yet. Create or edit content to populate this feed."}
+            ? "No recently opened pages yet. Open a project, blog post, or other content to see it here."
+            : "No one has opened content recently. Activity from edits is kept in the background only."}
         </p>
       ) : null}
     </section>

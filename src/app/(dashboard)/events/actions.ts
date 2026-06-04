@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
 function slugify(input: string): string {
   const s = input
@@ -53,6 +54,8 @@ export async function createEventQuick() {
 
   revalidatePath("/");
   revalidatePath("/events");
+
+  scheduleContentSeoGeneration("event", event.id);
 
   return {
     ok: true as const,
@@ -135,6 +138,8 @@ export async function updateEvent(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/events");
+
+  scheduleContentSeoGeneration("event", event.id);
 
   return {
     ok: true as const,

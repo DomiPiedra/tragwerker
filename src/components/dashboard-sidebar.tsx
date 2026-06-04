@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart3,
-  Bell,
   Briefcase,
   Building2,
   Calendar,
@@ -15,15 +14,22 @@ import {
   FolderOpen,
   ImageIcon,
   LayoutGrid,
+  LogOut,
   Search,
-  Settings,
-  Share2,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { SettingsModal } from "@/components/settings-modal";
+import { settingsMenuItems, type SettingsSection } from "@/components/settings-view";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useCommandShortcutKeys } from "@/hooks/use-command-shortcut";
 import { useCommandBarStore } from "@/store/command-bar-store";
 import { cn } from "@/lib/utils";
 
@@ -42,13 +48,28 @@ type NavItem = {
   match?: (pathname: string) => boolean;
 };
 
-const mainNav: NavItem[] = [
+const overviewNav: NavItem[] = [
   {
     icon: LayoutGrid,
     label: "Dashboard",
     href: "/",
     match: (p) => p === "/",
   },
+  {
+    icon: ImageIcon,
+    label: "Media",
+    href: "/media",
+    match: (p) => p.startsWith("/media"),
+  },
+  {
+    icon: BarChart3,
+    label: "Analytics",
+    href: "/analytics",
+    match: (p) => p.startsWith("/analytics"),
+  },
+];
+
+const contentNav: NavItem[] = [
   {
     icon: FolderOpen,
     label: "Projects",
@@ -85,19 +106,11 @@ const mainNav: NavItem[] = [
     href: "/immobilien",
     match: (p) => p.startsWith("/immobilien"),
   },
-  {
-    icon: ImageIcon,
-    label: "Media",
-    href: "/media",
-    match: (p) => p.startsWith("/media"),
-  },
-  {
-    icon: BarChart3,
-    label: "Analytics",
-    href: "/analytics",
-    match: (p) => p.startsWith("/analytics"),
-  },
 ];
+
+function SidebarDivider() {
+  return <div className="my-3 h-px bg-black/8" />;
+}
 
 function NavPill({
   icon: Icon,
@@ -123,16 +136,54 @@ function NavPill({
   );
 }
 
+function NavSection({
+  items,
+  pathname,
+  onNavigate,
+}: {
+  items: NavItem[];
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {items.map((item) => (
+        <NavPill
+          key={item.href}
+          {...item}
+          active={item.match ? item.match(pathname) : pathname === item.href}
+          onNavigate={onNavigate}
+        />
+      ))}
+    </div>
+  );
+}
+
+function SidebarShortcutHint({ keys }: { keys: string[] }) {
+  return (
+    <span
+      className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded-md border border-black/10 bg-[#f3f3f3] px-1.5 py-0.5 text-[11px] leading-none font-medium text-foreground/55 opacity-60"
+      aria-hidden
+    >
+      {keys.map((key) => (
+        <span key={key}>{key}</span>
+      ))}
+    </span>
+  );
+}
+
 function UtilityButton({
   icon: Icon,
   label,
   onClick,
   disabled,
+  shortcutKeys,
 }: {
   icon: LucideIcon;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
+  shortcutKeys?: string[];
 }) {
   return (
     <button
@@ -147,116 +198,85 @@ function UtilityButton({
       )}
     >
       <Icon className="size-4 shrink-0" />
-      <span>{label}</span>
+      <span className="min-w-0 flex-1">{label}</span>
+      {shortcutKeys ? <SidebarShortcutHint keys={shortcutKeys} /> : null}
     </button>
   );
 }
 
-export function DashboardSidebar({
+function UserMenuButton({
   user,
-  className,
-  onNavigate,
+  initials,
+  onOpenSection,
+  onSignOut,
 }: {
   user: DashboardUser;
-  className?: string;
-  onNavigate?: () => void;
+  initials: string;
+  onOpenSection: (section: SettingsSection) => void;
+  onSignOut: () => void;
 }) {
-  const pathname = usePathname();
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const openCommandBar = useCommandBarStore((state) => state.open);
-  const resetCommandSession = useCommandBarStore((state) => state.resetSessionState);
-
-  const initials =
-    user.displayName
-      .split(/\s+/)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || user.username.slice(0, 2).toUpperCase();
-
-  useEffect(() => {
-    function onOpenSettings() {
-      setSettingsOpen(true);
-    }
-
-    window.addEventListener("hcms:open-settings", onOpenSettings);
-    return () => window.removeEventListener("hcms:open-settings", onOpenSettings);
-  }, []);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <>
-      <aside
-        className={cn(
-          "flex flex-col rounded-[28px] bg-white px-3 py-4 shadow-sm",
-          className
-        )}
+    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="mb-4 flex w-full items-center gap-2.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-black/5 data-popup-open:bg-black/5"
+          />
+        }
       >
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          className="mb-4 flex w-full items-center gap-2.5 rounded-xl px-1 py-1 text-left transition-colors hover:bg-black/5"
+        <Avatar size="lg" className="size-9">
+          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.displayName} /> : null}
+          <AvatarFallback className="bg-[#e85d4a] text-sm font-semibold text-white">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{user.displayName}</span>
+        <ChevronDown
+          className={cn(
+            "text-muted-foreground size-4 shrink-0 transition-transform",
+            menuOpen && "rotate-180"
+          )}
+        />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        side="bottom"
+        sideOffset={6}
+        className="min-w-[168px] rounded-xl border border-black/8 bg-white p-1 shadow-md ring-0"
+      >
+        {settingsMenuItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <DropdownMenuItem
+              key={item.id}
+              className="gap-2.5 rounded-lg px-2.5 py-2"
+              onClick={() => {
+                setMenuOpen(false);
+                onOpenSection(item.id);
+              }}
+            >
+              <Icon className="size-4" />
+              {item.label}
+            </DropdownMenuItem>
+          );
+        })}
+        <DropdownMenuSeparator className="my-1 bg-black/8" />
+        <DropdownMenuItem
+          variant="destructive"
+          className="gap-2.5 rounded-lg px-2.5 py-2"
+          onClick={() => {
+            setMenuOpen(false);
+            onSignOut();
+          }}
         >
-          <Avatar size="lg" className="size-9">
-            {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={user.displayName} /> : null}
-            <AvatarFallback className="bg-[#e85d4a] text-sm font-semibold text-white">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <span className="min-w-0 flex-1 truncate text-[14px] font-medium">{user.displayName}</span>
-          <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-        </button>
-
-        <div className="space-y-0.5">
-          <UtilityButton
-            icon={Search}
-            label="Search"
-            onClick={() => {
-              resetCommandSession();
-              openCommandBar();
-              onNavigate?.();
-            }}
-          />
-          <UtilityLink icon={Clock3} label="Recents" href="/" onNavigate={onNavigate} />
-          <UtilityLink icon={Share2} label="Shared With You" href="/portfolio" onNavigate={onNavigate} disabled />
-          <UtilityButton icon={Bell} label="Notifications" disabled />
-        </div>
-
-        <div className="my-4 h-px bg-black/8" />
-
-        <nav className="flex flex-1 flex-col gap-0.5">
-          {mainNav.map((item) => (
-            <NavPill
-              key={item.href}
-              {...item}
-              active={item.match ? item.match(pathname) : pathname === item.href}
-              onNavigate={onNavigate}
-            />
-          ))}
-        </nav>
-
-        <div className="mt-4 space-y-2">
-          <UtilityButton
-            icon={Settings}
-            label="Settings"
-            onClick={() => {
-              setSettingsOpen(true);
-              onNavigate?.();
-            }}
-          />
-          <div className="rounded-full bg-[#f0f0f0] px-3 py-2">
-            <div className="mb-1.5 flex items-center justify-between text-[11px] text-foreground/60">
-              <span>Workspace usage</span>
-              <span>Healthy</span>
-            </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-black/8">
-              <div className="h-full w-[64%] rounded-full bg-foreground/80" />
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
-    </>
+          <LogOut className="size-4" />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -286,5 +306,103 @@ function UtilityLink({
       <Icon className="size-4 shrink-0" />
       <span>{label}</span>
     </Link>
+  );
+}
+
+export function DashboardSidebar({
+  user,
+  className,
+  onNavigate,
+}: {
+  user: DashboardUser;
+  className?: string;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const openCommandBar = useCommandBarStore((state) => state.open);
+  const resetCommandSession = useCommandBarStore((state) => state.resetSessionState);
+  const commandShortcutKeys = useCommandShortcutKeys();
+
+  const initials =
+    user.displayName
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || user.username.slice(0, 2).toUpperCase();
+
+  const openSettings = useCallback(
+    (section: SettingsSection = "general") => {
+      router.push(`/settings?section=${section}`);
+      onNavigate?.();
+    },
+    [router, onNavigate]
+  );
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
+  useEffect(() => {
+    function onOpenSettings() {
+      openSettings("general");
+    }
+
+    window.addEventListener("hcms:open-settings", onOpenSettings);
+    return () => window.removeEventListener("hcms:open-settings", onOpenSettings);
+  }, [openSettings]);
+
+  return (
+    <aside
+        className={cn(
+          "flex h-full max-h-full flex-col overflow-hidden rounded-[28px] bg-white px-3 py-4 shadow-sm",
+          className
+        )}
+      >
+        <UserMenuButton
+          user={user}
+          initials={initials}
+          onOpenSection={openSettings}
+          onSignOut={() => void handleSignOut()}
+        />
+
+        <div className="space-y-0.5">
+          <UtilityButton
+            icon={Search}
+            label="Search"
+            shortcutKeys={commandShortcutKeys}
+            onClick={() => {
+              resetCommandSession();
+              openCommandBar();
+              onNavigate?.();
+            }}
+          />
+          <UtilityLink icon={Clock3} label="Recent" href="/" onNavigate={onNavigate} />
+        </div>
+
+        <SidebarDivider />
+
+        <nav className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <NavSection items={overviewNav} pathname={pathname} onNavigate={onNavigate} />
+
+          <SidebarDivider />
+
+          <NavSection items={contentNav} pathname={pathname} onNavigate={onNavigate} />
+        </nav>
+
+        <div className="mt-4">
+          <div className="rounded-full bg-[#f0f0f0] px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between text-[11px] text-foreground/60">
+              <span>Workspace usage</span>
+              <span>Healthy</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-black/8">
+              <div className="h-full w-[64%] rounded-full bg-foreground/80" />
+            </div>
+          </div>
+        </div>
+      </aside>
   );
 }

@@ -3,9 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Sparkles, Search } from "lucide-react";
+import { Paperclip, Sparkles, Search } from "lucide-react";
 
-import { processVoiceIntent } from "@/app/actions/processVoiceIntent";
+import { processCommandBarIntent } from "@/app/actions/processCommandBarIntent";
+import type { CommandBarIntentPayload } from "@/types/command-intent";
+import { CommandAttachmentChips } from "@/components/command/command-attachment-chips";
+import { CommandMediaPicker } from "@/components/command/command-media-picker";
+import { useCommandAttachments } from "@/hooks/use-command-attachments";
 import { useCommandResults } from "@/hooks/use-command-results";
 import { useCommandShortcut } from "@/hooks/use-command-shortcut";
 import { useSemanticNavigation } from "@/hooks/use-semantic-navigation";
@@ -31,6 +35,14 @@ export function GlobalCommandBar() {
   useCommandShortcut();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const {
+    attachments,
+    uploading: attachmentUploading,
+    addAttachments,
+    removeAttachment,
+    clearAttachments,
+  } = useCommandAttachments();
 
   const isOpen = useCommandBarStore((state) => state.isOpen);
   const query = useCommandBarStore((state) => state.query);
@@ -73,14 +85,19 @@ export function GlobalCommandBar() {
     },
   });
   const hasQuery = query.trim().length > 0;
+  const hasAttachments = attachments.length > 0;
+  const canSubmit = hasQuery || hasAttachments;
   const listeningAura =
-    semanticLoading || contentLoading || aiAuraBoost || isRecording || isTyping;
-  const ringOpacity = isTyping ? 0.92 : listeningAura ? 0.56 : hasQuery ? 0.14 : 0.06;
+    semanticLoading || contentLoading || aiAuraBoost || isRecording || isTyping || attachmentUploading;
+  const ringOpacity = isTyping ? 0.92 : listeningAura ? 0.56 : canSubmit ? 0.14 : 0.06;
   const spinDuration = isTyping ? 3.4 : 7;
 
   useEffect(() => {
-    if (!isOpen) setIsTyping(false);
-  }, [isOpen]);
+    if (!isOpen) {
+      setIsTyping(false);
+      clearAttachments();
+    }
+  }, [clearAttachments, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -115,41 +132,78 @@ export function GlobalCommandBar() {
     return map;
   }, [results]);
 
-  async function execute(index: number) {
-    const result = results[index];
-    if (!result) return;
-    const command = result.command;
-    pushRecent(command.id);
-    await command.action({
-      close,
-      navigate: (path) => router.push(path),
-    });
-  }
-
-  async function handleAICommand(text: string) {
-    const suggestion = await processVoiceIntent({
-      transcript: text,
-      commands: commandMetadata,
-    });
-    if (!suggestion || !suggestion.commandId || suggestion.confidence < 0.35) return;
-    setAiAuraBoost(true);
-    window.setTimeout(() => setAiAuraBoost(false), 700);
-    await executeCommandById(suggestion.commandId);
-  }
-
-  async function executeCommandById(commandId: string) {
+  async function runCommand(
+    commandId: string,
+    intentPayload?: CommandBarIntentPayload
+  ) {
     const index = results.findIndex((result) => result.command.id === commandId);
-    if (index >= 0) {
-      await execute(index);
-      return;
-    }
-    const command = commands.find((x) => x.id === commandId);
+    const command =
+      index >= 0 ? results[index]?.command : commands.find((x) => x.id === commandId);
     if (!command) return;
     pushRecent(command.id);
     await command.action({
       close,
       navigate: (path) => router.push(path),
+      attachments: attachments.length > 0 ? attachments : undefined,
+      intent: intentPayload,
     });
+    clearAttachments();
+  }
+
+  async function resolveAndRun(transcript: string) {
+    const trimmed = transcript.trim();
+    if (!trimmed && attachments.length === 0) return false;
+
+    const resolved = await processCommandBarIntent({
+      transcript:
+        trimmed || attachments.map((f) => f.title || f.originalName).join(", "),
+      commands: commandMetadata,
+      attachments,
+    });
+    if (!resolved.commandId || resolved.confidence < 0.35) return false;
+
+    setAiAuraBoost(true);
+    window.setTimeout(() => setAiAuraBoost(false), 700);
+    await runCommand(resolved.commandId, resolved.payload);
+    return true;
+  }
+
+  async function execute(index: number) {
+    const result = results[index];
+    if (!result) return;
+    const transcript = query.trim();
+    if (transcript || attachments.length > 0) {
+      const resolved = await processCommandBarIntent({
+        transcript:
+          transcript || attachments.map((f) => f.title || f.originalName).join(", "),
+        commands: commandMetadata,
+        attachments,
+      });
+      if (resolved.commandId === result.command.id) {
+        await runCommand(result.command.id, resolved.payload);
+        return;
+      }
+    }
+    await runCommand(result.command.id);
+  }
+
+  async function handleAICommand(text: string) {
+    await resolveAndRun(text);
+  }
+
+  async function executeCommandById(commandId: string) {
+    const transcript =
+      query.trim() || attachments.map((f) => f.title || f.originalName).join(", ");
+    if (transcript || attachments.length > 0) {
+      const resolved = await processCommandBarIntent({
+        transcript,
+        commands: commandMetadata,
+        attachments,
+      });
+      await runCommand(commandId, resolved.commandId === commandId ? resolved.payload : undefined);
+      return;
+    }
+    await runCommand(commandId);
   }
 
   return (
@@ -280,7 +334,7 @@ export function GlobalCommandBar() {
                 </AnimatePresence>
                 <div className="border-border border-b">
                   <div className="flex items-center gap-2 px-4 py-3">
-                    <Search className="text-muted-foreground size-4" />
+                    <Search className="text-muted-foreground size-4 shrink-0" />
                     <input
                       ref={inputRef}
                       value={query}
@@ -290,16 +344,32 @@ export function GlobalCommandBar() {
                         setActiveIndex(0);
                       }}
                       placeholder="Type a command or content title…"
-                      className="placeholder:text-muted-foreground flex-1 bg-transparent text-sm outline-none"
+                      className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
                       aria-autocomplete="list"
                       aria-controls="isb-content-suggestions"
                       aria-expanded={
                         query.trim().length >= 2 && (contentFillSuggestions.length > 0 || contentLoading)
                       }
                     />
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground inline-flex size-7 shrink-0 items-center justify-center rounded-md transition-colors"
+                      aria-label="Attach files"
+                      onClick={() => setPickerOpen(true)}
+                    >
+                      <Paperclip className="size-4" />
+                    </button>
                     <VoiceButton isRecording={isRecording} onClick={toggleVoice} />
-                    <kbd className="text-muted-foreground rounded border px-2 py-1 text-[11px]">ESC</kbd>
+                    <kbd className="text-muted-foreground hidden shrink-0 rounded border px-2 py-1 text-[11px] sm:inline">
+                      ESC
+                    </kbd>
                   </div>
+                  <CommandAttachmentChips
+                    attachments={attachments}
+                    uploading={attachmentUploading}
+                    onRemove={removeAttachment}
+                    className="px-4 pb-3"
+                  />
                   {query.trim().length >= 2 && (contentFillSuggestions.length > 0 || contentLoading) ? (
                     <div
                       id="isb-content-suggestions"
@@ -425,6 +495,12 @@ export function GlobalCommandBar() {
           </AnimatePresence>
         </motion.div>
       ) : null}
+      <CommandMediaPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        selectedIds={attachments.map((a) => a.id)}
+        onAdd={addAttachments}
+      />
     </AnimatePresence>
   );
 }

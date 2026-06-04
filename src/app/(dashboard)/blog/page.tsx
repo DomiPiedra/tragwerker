@@ -11,6 +11,8 @@ export default async function BlogPage({
   const viewRaw = resolvedSearchParams.blogView;
   const initialFullViewPostId = Array.isArray(postIdRaw) ? postIdRaw[0] : postIdRaw ?? null;
   const initialIsFullBlogView = (Array.isArray(viewRaw) ? viewRaw[0] : viewRaw) === "full";
+  const generateRaw = resolvedSearchParams.generateContent;
+  const initialGenerateContent = (Array.isArray(generateRaw) ? generateRaw[0] : generateRaw) === "1";
 
   const posts = await prisma.blogPost.findMany({ orderBy: { updatedAt: "desc" } });
   const serialized = posts.map((post) => ({
@@ -30,6 +32,7 @@ export default async function BlogPage({
       initialPosts={serialized}
       initialFullViewPostId={initialFullViewPostId}
       initialIsFullBlogView={initialIsFullBlogView}
+      initialGenerateContent={initialGenerateContent}
     />
   );
 }

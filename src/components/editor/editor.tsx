@@ -15,6 +15,8 @@ import { EDITOR_OPEN_MEDIA_PICKER_EVENT } from "./editor-bridge";
 import { EditorMediaPicker } from "./editor-media-picker";
 import { SlashCommand } from "./slash-command";
 
+export const EDITOR_SLASH_PLACEHOLDER = "press / to add elements";
+
 type EditorProps = {
   value: string;
   onChange: (value: string) => void;
@@ -27,7 +29,7 @@ export function Editor({
   value,
   onChange,
   handleAIEdit,
-  placeholder = "Type '/' for commands or start writing...",
+  placeholder = EDITOR_SLASH_PLACEHOLDER,
   className,
 }: EditorProps) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
@@ -41,7 +43,10 @@ export function Editor({
           openOnClick: false,
         },
       }),
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({
+        placeholder,
+        showOnlyCurrent: false,
+      }),
       Image,
       Youtube.configure({
         modestBranding: true,
@@ -106,7 +111,7 @@ export function Editor({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-transparent bg-transparent px-2 py-1 transition-colors focus-within:border-zinc-200/70 focus-within:bg-zinc-50/40 dark:focus-within:border-zinc-700/70 dark:focus-within:bg-zinc-900/30",
+        "rounded-2xl border border-transparent bg-transparent px-2 py-1 caret-foreground focus-within:border-transparent focus-within:bg-transparent focus-within:shadow-none focus-within:ring-0",
         className
       )}
       onClick={() => editor.chain().focus().run()}

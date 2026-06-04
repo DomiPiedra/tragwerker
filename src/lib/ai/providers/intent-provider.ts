@@ -1,8 +1,7 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import { buildIntentSystemPrompt, buildIntentUserPrompt } from "@/lib/ai/prompts/intent-prompt";
+import { generateObjectWithFallback } from "@/lib/ai/run-with-fallback";
 import type { AIProvider, SemanticInterpretation, SemanticRouterRequest } from "@/lib/ai/types";
 
 const intentSchema = z.object({
@@ -11,19 +10,17 @@ const intentSchema = z.object({
   reasoning: z.string().min(1).max(240),
 });
 
-export class GeminiProvider implements AIProvider {
+export class IntentProvider implements AIProvider {
   async interpretIntent(input: SemanticRouterRequest): Promise<SemanticInterpretation | null> {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
-
-    const google = createGoogleGenerativeAI({ apiKey });
-    const { object } = await generateObject({
-      model: google("gemini-1.5-flash"),
+    const object = await generateObjectWithFallback({
+      tier: "fast",
       schema: intentSchema,
       system: buildIntentSystemPrompt(),
       prompt: buildIntentUserPrompt(input.input, input.commands),
       temperature: 0.1,
     });
+
+    if (!object) return null;
 
     return {
       commandId: object.commandId,

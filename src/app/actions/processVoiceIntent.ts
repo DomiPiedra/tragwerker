@@ -1,10 +1,9 @@
 "use server";
 
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateObject } from "ai";
 import { z } from "zod";
 
 import type { CommandMetadata, SemanticInterpretation } from "@/lib/ai";
+import { generateObjectWithFallback } from "@/lib/ai/run-with-fallback";
 
 const voiceActionSchema = z.object({
   action: z.enum(["navigate", "modal", "search", "unknown"]),
@@ -42,12 +41,8 @@ export async function processVoiceIntent(input: {
   if (!text) return null;
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
-
-    const google = createGoogleGenerativeAI({ apiKey });
-    const { object } = await generateObject({
-      model: google("gemini-1.5-flash"),
+    const object = await generateObjectWithFallback({
+      tier: "fast",
       schema: voiceActionSchema,
       system: [
         "You are the brain of a premium CMS.",
@@ -72,6 +67,8 @@ export async function processVoiceIntent(input: {
       }),
       temperature: 0.1,
     });
+
+    if (!object) return null;
 
     const directCommand =
       object.commandId && input.commands.some((command) => command.id === object.commandId)

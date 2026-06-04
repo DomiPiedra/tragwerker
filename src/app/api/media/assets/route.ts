@@ -5,9 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 const MAX_ITEMS = 120;
 
-/** List media assets for the editor image picker (authenticated editors). */
-export async function GET() {
+/** List media assets for pickers (authenticated editors). ?scope=all returns every type. */
+export async function GET(request: Request) {
   await requireEditorOrAdmin();
+
+  const scope = new URL(request.url).searchParams.get("scope") ?? "images";
 
   const rows = await prisma.mediaAsset.findMany({
     orderBy: { updatedAt: "desc" },
@@ -19,14 +21,18 @@ export async function GET() {
       altText: true,
       mimeType: true,
       originalName: true,
+      sizeBytes: true,
     },
   });
 
-  const items = rows.filter((row) => {
-    const mime = row.mimeType.toLowerCase();
-    if (mime.startsWith("image/")) return true;
-    return /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico)$/i.test(row.originalName);
-  });
+  const items =
+    scope === "all"
+      ? rows
+      : rows.filter((row) => {
+          const mime = row.mimeType.toLowerCase();
+          if (mime.startsWith("image/")) return true;
+          return /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico)$/i.test(row.originalName);
+        });
 
   return NextResponse.json({ items });
 }

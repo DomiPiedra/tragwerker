@@ -8,6 +8,7 @@ import { ProjectStatus } from "@/generated/prisma/enums";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
 function parseProjectStatus(raw: string | undefined | null): ProjectStatus {
   const v = (raw ?? "").trim();
@@ -83,6 +84,7 @@ export async function createProject(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/projects");
+  scheduleContentSeoGeneration("project", created.id);
   return { ok: true as const };
 }
 
@@ -228,6 +230,8 @@ export async function updateProject(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/projects");
 
+  scheduleContentSeoGeneration("project", project.id);
+
   return {
     ok: true as const,
     project: {
@@ -280,6 +284,8 @@ export async function createProjectQuick() {
 
   revalidatePath("/");
   revalidatePath("/projects");
+
+  scheduleContentSeoGeneration("project", project.id);
 
   return {
     ok: true as const,

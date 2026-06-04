@@ -1,15 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { isContentFullView } from "@/lib/content-full-view";
+import { cn } from "@/lib/utils";
+
+import { ContentOpenTracker } from "@/components/content-open-tracker";
 
 import { DashboardSidebar, type DashboardUser } from "./dashboard-sidebar";
 
-export function DashboardShell({
+function DashboardShellInner({
   user,
   children,
 }: {
@@ -18,16 +24,28 @@ export function DashboardShell({
 }) {
   const isMobile = useIsMobile();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const isFullView = isContentFullView(searchParams);
+  useCreateShortcut({ disabled: isFullView });
 
   return (
-    <div className="flex min-h-svh bg-[#e8e8e8] p-3 md:gap-4 md:p-4">
-      {!isMobile ? (
-        <DashboardSidebar user={user} className="hidden w-[248px] shrink-0 md:flex" />
+    <div
+      className={cn(
+        "flex h-svh overflow-hidden",
+        isFullView ? "bg-[#ececec] p-0" : "bg-[#e8e8e8] p-3 md:gap-4 md:p-4"
+      )}
+    >
+      <ContentOpenTracker />
+      {!isMobile && !isFullView ? (
+        <DashboardSidebar
+          user={user}
+          className="sticky top-3 hidden h-[calc(100svh-1.5rem)] max-h-[calc(100svh-1.5rem)] w-[248px] shrink-0 self-start md:top-4 md:flex md:h-[calc(100svh-2rem)] md:max-h-[calc(100svh-2rem)]"
+        />
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        {isMobile ? (
-          <div className="mb-3 flex items-center md:hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {isMobile && !isFullView ? (
+          <div className="mb-3 flex shrink-0 items-center md:hidden">
             <Button
               type="button"
               variant="ghost"
@@ -40,10 +58,17 @@ export function DashboardShell({
             </Button>
           </div>
         ) : null}
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+        <main
+          className={cn(
+            "min-h-0 flex-1",
+            isFullView ? "overflow-hidden" : "overflow-y-auto"
+          )}
+        >
+          {children}
+        </main>
       </div>
 
-      {isMobile ? (
+      {isMobile && !isFullView ? (
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
           <SheetContent side="left" className="w-[min(280px,88vw)] border-0 bg-white p-0">
             <DashboardSidebar
@@ -55,5 +80,25 @@ export function DashboardShell({
         </Sheet>
       ) : null}
     </div>
+  );
+}
+
+export function DashboardShell({
+  user,
+  children,
+}: {
+  user: DashboardUser;
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-svh overflow-hidden bg-[#e8e8e8] p-3 md:p-4">
+          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        </div>
+      }
+    >
+      <DashboardShellInner user={user}>{children}</DashboardShellInner>
+    </Suspense>
   );
 }

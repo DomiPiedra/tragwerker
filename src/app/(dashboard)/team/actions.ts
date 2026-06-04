@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
 export async function createTeamMemberQuick() {
   await requireEditorOrAdmin();
@@ -27,6 +28,8 @@ export async function createTeamMemberQuick() {
 
   revalidatePath("/");
   revalidatePath("/team");
+
+  scheduleContentSeoGeneration("teamMember", member.id);
 
   return {
     ok: true as const,
@@ -73,6 +76,8 @@ export async function updateTeamMember(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/team");
+
+  scheduleContentSeoGeneration("teamMember", member.id);
 
   return {
     ok: true as const,

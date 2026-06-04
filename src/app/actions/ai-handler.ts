@@ -1,7 +1,6 @@
 "use server";
 
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { generateText, streamText } from "ai";
+import { streamTextWithFallback } from "@/lib/ai/run-with-fallback";
 
 type AIWriterMode = "improve" | "professional" | "shorten" | "simplify" | "generate";
 
@@ -17,23 +16,6 @@ function buildInstruction(mode: AIWriterMode) {
   return "Improve the writing quality, rhythm, and clarity while preserving intent.";
 }
 
-function isRateLimitError(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const statusCode = (error as { statusCode?: number }).statusCode;
-  const status = (error as { status?: number }).status;
-  const code = String((error as { code?: string }).code ?? "");
-  const message = String((error as { message?: string }).message ?? "").toLowerCase();
-  return statusCode === 429 || status === 429 || code.includes("429") || message.includes("429");
-}
-
-function isModelNotFoundError(error: unknown) {
-  if (!error || typeof error !== "object") return false;
-  const statusCode = (error as { statusCode?: number }).statusCode;
-  const status = (error as { status?: number }).status;
-  const message = String((error as { message?: string }).message ?? "").toLowerCase();
-  return statusCode === 404 || status === 404 || message.includes("model") || message.includes("not found");
-}
-
 export async function runAIHandler(input: {
   mode: AIWriterMode;
   text: string;
@@ -43,99 +25,21 @@ export async function runAIHandler(input: {
   const text = input.text.trim();
   if (!text) return { ok: true, text: "" };
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return {
-      ok: false,
-      error: "Missing GEMINI_API_KEY. Add it to .env.local and restart dev server.",
-      reason: "general",
-    };
-  }
+  const prompt = [
+    `Mode instruction: ${buildInstruction(input.mode)}`,
+    "Return only the rewritten text.",
+    "",
+    "Original:",
+    text,
+  ].join("\n");
 
-  try {
-    const google = createGoogleGenerativeAI({ apiKey });
-    const candidateModels = [
-      "gemini-1.5-flash-latest",
-      "gemini-1.5-flash",
-      "gemini-2.0-flash",
-      "gemini-2.5-flash",
-    ];
-    let full = "";
-    let succeeded = false;
+  const result = await streamTextWithFallback({
+    tier: "writer",
+    system: SYSTEM_PROMPT,
+    prompt,
+    temperature: 0.35,
+  });
 
-    for (const modelName of candidateModels) {
-      try {
-        const prompt = [
-          `Mode instruction: ${buildInstruction(input.mode)}`,
-          "Return only the rewritten text.",
-          "",
-          "Original:",
-          text,
-        ].join("\n");
-
-        const result = streamText({
-          model: google(modelName),
-          system: SYSTEM_PROMPT,
-          prompt,
-          temperature: 0.35,
-        });
-
-        full = "";
-        for await (const delta of result.textStream) {
-          full += delta;
-        }
-        if (full.trim().length > 0) {
-          succeeded = true;
-          break;
-        }
-
-        // Some provider/model combos can return an empty stream; retry once non-streaming.
-        const backup = await generateText({
-          model: google(modelName),
-          system: SYSTEM_PROMPT,
-          prompt,
-          temperature: 0.35,
-        });
-        full = backup.text ?? "";
-        if (full.trim().length > 0) {
-          succeeded = true;
-          break;
-        }
-      } catch (error) {
-        if (isRateLimitError(error)) {
-          return {
-            ok: false,
-            error: "AI is resting for a moment...",
-            reason: "rate_limit",
-          };
-        }
-        if (!isModelNotFoundError(error)) {
-          throw error;
-        }
-      }
-    }
-
-    if (!succeeded) {
-      return {
-        ok: false,
-        error: "Gemini returned no text. Try again with a more specific prompt.",
-        reason: "general",
-      };
-    }
-
-    return { ok: true, text: full.trim() };
-  } catch (error) {
-    if (isRateLimitError(error)) {
-      return {
-        ok: false,
-        error: "AI is resting for a moment...",
-        reason: "rate_limit",
-      };
-    }
-    return {
-      ok: false,
-      error: "Gemini request failed. Please check key/quota and retry.",
-      reason: "general",
-    };
-  }
+  if (!result.ok) return result;
+  return { ok: true, text: result.text };
 }
