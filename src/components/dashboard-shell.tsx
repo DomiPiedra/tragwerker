@@ -6,7 +6,6 @@ import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { useCreateShortcut } from "@/hooks/use-create-shortcut";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { isContentFullView } from "@/lib/content-full-view";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,6 @@ function DashboardShellInner({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const searchParams = useSearchParams();
   const isFullView = isContentFullView(searchParams);
-  useCreateShortcut({ disabled: isFullView });
 
   return (
     <div
