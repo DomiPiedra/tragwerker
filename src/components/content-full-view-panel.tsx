@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export const contentFullViewActionButtonClassName = cn(
   buttonVariants({ variant: "ghost", size: "icon-sm" }),
-  "size-9 rounded-lg bg-white/70 text-foreground shadow-sm hover:bg-white"
+  "size-9 rounded-full bg-white/70 text-foreground shadow-sm hover:bg-white"
 );
 
 type ContentFullViewPanelTriggerProps = {

@@ -15,6 +15,7 @@ import {
   CircleDot,
   ExternalLink,
   Filter,
+  ImageIcon,
   Link2,
   Loader2,
   MoreHorizontal,
@@ -49,6 +50,11 @@ import {
   contentFullViewTitleClassName,
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
+import {
+  ContentFullViewPanelField,
+  ContentFullViewPanelSection,
+} from "@/components/content-full-view-panel";
+import { Separator } from "@/components/ui/separator";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
 import {
   contentPreviewPanelClassName,
@@ -58,11 +64,17 @@ import {
 import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 import { Editor } from "@/components/editor/editor";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 
+import { fetchContentSeoRecord, saveContentSeoAction } from "@/app/actions/content-seo";
 import { generateBlogPostContent } from "@/app/actions/generateBlogPostContent";
 import { popBlogContentGeneration } from "@/lib/blog/command-bar-generation";
 
 import { ContentCreateButton } from "@/components/content-create-button";
+import {
+  ContentSiteSettingsFields,
+  ContentSiteSettingsInlineRow,
+} from "@/components/content-site-settings-fields";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
@@ -139,6 +151,9 @@ export function BlogListClient({
   const savedHintTimerRef = useRef<number | null>(null);
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const generationStartedRef = useRef(false);
+  const [coverImage, setCoverImage] = useState("");
+  const [coverImageSaving, setCoverImageSaving] = useState(false);
+  const coverSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fullViewPostId = initialFullViewPostId;
   const isFullBlogView = initialIsFullBlogView;
@@ -182,6 +197,56 @@ export function BlogListClient({
       publishedAt: toLocalInputValue(selected.publishedAt),
     });
   }, [selected]);
+
+  useEffect(() => {
+    if (!selected) {
+      setCoverImage("");
+      return;
+    }
+
+    let cancelled = false;
+    void fetchContentSeoRecord({
+      entityType: "blogPost",
+      entityId: selected.id,
+    }).then((result) => {
+      if (cancelled) return;
+      setCoverImage(result.ok && result.seo ? result.seo.seoImage : "");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (coverSaveTimerRef.current) clearTimeout(coverSaveTimerRef.current);
+    };
+  }, []);
+
+  function updateCoverImage(seoImage: string) {
+    if (!selected) return;
+    const entityId = selected.id;
+    setCoverImage(seoImage);
+    if (coverSaveTimerRef.current) clearTimeout(coverSaveTimerRef.current);
+    coverSaveTimerRef.current = setTimeout(async () => {
+      setCoverImageSaving(true);
+      try {
+        const result = await saveContentSeoAction({
+          entityType: "blogPost",
+          entityId,
+          seo: { seoImage },
+        });
+        if (!result.ok) {
+          setError(result.error);
+        } else {
+          triggerSavedHint();
+        }
+      } finally {
+        setCoverImageSaving(false);
+      }
+    }, 600);
+  }
 
   useEffect(() => {
     if (filtered.length === 0) {
@@ -457,24 +522,75 @@ export function BlogListClient({
     </div>
   );
 
-  function renderBlogMetadataFields(layout: "panel" | "inline" = "inline"): ReactNode {
+  function renderBlogSiteSettings(): ReactNode {
+    if (!selected || !draft) return null;
+    return (
+      <div className="space-y-6">
+        <ContentFullViewPanelSection title="Publishing">
+          <ContentSiteSettingsFields
+            published={draft.published}
+            publishedAt={draft.publishedAt}
+            splitPublishedAt={splitLocalDateTime}
+            mergePublishedAt={mergeLocalDateTime}
+            onPublishedChange={(published) =>
+              setDraft((prev) => (prev ? { ...prev, published } : prev))
+            }
+            onPublishedAtChange={(publishedAt) =>
+              setDraft((prev) => (prev ? { ...prev, publishedAt } : prev))
+            }
+          />
+        </ContentFullViewPanelSection>
+
+        <Separator className="bg-black/6" />
+
+        <ContentFullViewPanelSection title="Page">
+          <ContentFullViewPanelField label="Updated">
+            <p className="text-muted-foreground text-[13px]">
+              {dateFmt.format(new Date(selected.updatedAt))}
+            </p>
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Slug">
+            <Input
+              value={draft.slug}
+              required
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))}
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Cover image">
+            <MediaImagePicker
+              value={coverImage}
+              variant="cover"
+              placeholder="Choose cover image"
+              onChange={updateCoverImage}
+            />
+            {coverImageSaving ? (
+              <p className="text-muted-foreground text-xs">Saving cover image…</p>
+            ) : null}
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Excerpt">
+            <textarea
+              value={draft.excerpt}
+              rows={4}
+              className="border-input bg-[#f7f7f7] min-h-[5rem] w-full rounded-lg border border-black/8 px-3 py-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) => setDraft((prev) => (prev ? { ...prev, excerpt: e.target.value } : prev))}
+            />
+          </ContentFullViewPanelField>
+        </ContentFullViewPanelSection>
+      </div>
+    );
+  }
+
+  function renderBlogPageFields(): ReactNode {
     if (!selected) return null;
 
-    const labelClass =
-      layout === "panel"
-        ? "text-muted-foreground mb-1.5 flex items-center gap-2 text-xs font-medium"
-        : "text-muted-foreground flex items-center gap-2 text-sm";
-
-    const fieldBlock = layout === "panel" ? "space-y-1" : "grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5";
-    const excerptBlock =
-      layout === "panel"
-        ? "space-y-1"
-        : "grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5";
+    const fieldBlock = "grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5";
+    const excerptBlock = "grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5";
 
     return (
       <>
         <div className={fieldBlock}>
-          <label className={labelClass}>
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
             <CalendarDays className="size-3.5" />
             Updated
           </label>
@@ -482,87 +598,45 @@ export function BlogListClient({
         </div>
 
         <div className={fieldBlock}>
-          <label className={labelClass}>
+          <label className="text-muted-foreground flex items-center gap-2 text-sm">
             <Link2 className="size-3.5" />
             Slug
           </label>
           <Input
             value={draft?.slug ?? ""}
             required
-            className={cn(
-              "h-9 text-sm",
-              layout === "panel"
-                ? "rounded-lg border-black/10 bg-[#f5f5f5]"
-                : "h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            )}
+            className="h-8 border-0 bg-transparent px-0 text-sm focus-visible:ring-0"
             onChange={(e) => setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))}
           />
         </div>
 
-        <div className={fieldBlock}>
-          <label className={labelClass}>
-            <CircleDot className="size-3.5" />
-            Status
-          </label>
-          <select
-            value={draft?.published ? "published" : "draft"}
-            onChange={(e) =>
-              setDraft((prev) =>
-                prev ? { ...prev, published: e.target.value === "published" } : prev
-              )
-            }
-            className={cn(
-              "h-9 w-full rounded-lg border-0 px-3 text-sm font-medium shadow-none outline-none appearance-none",
-              draft?.published ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-700",
-              layout === "inline" && "h-8 w-fit rounded-full pr-8"
-            )}
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-        </div>
+        <ContentSiteSettingsInlineRow
+          published={draft?.published ?? false}
+          onPublishedChange={(published) =>
+            setDraft((prev) => (prev ? { ...prev, published } : prev))
+          }
+        />
 
-        <div className={fieldBlock}>
-          <label className={labelClass}>
-            <CalendarDays className="size-3.5" />
-            Published At
+        <div className={excerptBlock}>
+          <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+            <ImageIcon className="size-3.5" />
+            Cover image
           </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <Input
-              type="date"
-              value={splitLocalDateTime(draft?.publishedAt ?? "").date}
-              className="h-9 w-full min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 sm:w-fit sm:flex-none [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
-              onChange={(e) =>
-                setDraft((prev) => {
-                  if (!prev) return prev;
-                  const current = splitLocalDateTime(prev.publishedAt);
-                  return {
-                    ...prev,
-                    publishedAt: mergeLocalDateTime(e.target.value, current.time),
-                  };
-                })
-              }
+          <div className="space-y-1">
+            <MediaImagePicker
+              value={coverImage}
+              variant="cover"
+              placeholder="Choose cover image"
+              onChange={updateCoverImage}
             />
-            <Input
-              type="time"
-              value={splitLocalDateTime(draft?.publishedAt ?? "").time}
-              className="h-9 w-full min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-100/80 px-3 text-sm text-zinc-700 shadow-none outline-none appearance-none transition-colors focus:border-zinc-300 focus:ring-0 focus-visible:ring-0 sm:w-fit sm:flex-none [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60"
-              onChange={(e) =>
-                setDraft((prev) => {
-                  if (!prev) return prev;
-                  const current = splitLocalDateTime(prev.publishedAt);
-                  return {
-                    ...prev,
-                    publishedAt: mergeLocalDateTime(current.date, e.target.value),
-                  };
-                })
-              }
-            />
+            {coverImageSaving ? (
+              <p className="text-muted-foreground text-xs">Saving cover image…</p>
+            ) : null}
           </div>
         </div>
 
         <div className={excerptBlock}>
-          <label className={cn(labelClass, layout === "inline" && "pt-1")}>
+          <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
             <CircleDot className="size-3.5" />
             Excerpt
           </label>
@@ -581,7 +655,7 @@ export function BlogListClient({
     if (!selected) return null;
     return (
       <div className="space-y-2">
-        {renderBlogMetadataFields("inline")}
+        {renderBlogPageFields()}
 
         <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
@@ -637,7 +711,7 @@ export function BlogListClient({
           onBack={exitFullView}
           onRename={focusContentFullViewRename}
           onDelete={handleFullViewDelete}
-          settingsContent={renderBlogMetadataFields("panel")}
+          settingsContent={renderBlogSiteSettings()}
           seoContext={{
             entityType: "blogPost",
             entityId: selected.id,

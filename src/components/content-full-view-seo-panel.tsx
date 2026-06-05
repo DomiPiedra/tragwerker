@@ -15,6 +15,7 @@ import {
   ContentFullViewPanelSection,
   ContentFullViewPanelTrigger,
 } from "@/components/content-full-view-panel";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -344,13 +345,13 @@ export function ContentFullViewSeoPanel({
                 onChange={(e) => updateSeo({ seoDescription: e.target.value })}
               />
             </ContentFullViewPanelField>
-            <ContentFullViewPanelField label="OG Image URL">
-              <Input
+            <ContentFullViewPanelField label="OG Image">
+              <MediaImagePicker
                 value={seo.seoImage}
+                variant="cover"
                 disabled={disabled}
-                placeholder="https://…"
-                className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
-                onChange={(e) => updateSeo({ seoImage: e.target.value })}
+                placeholder="Choose cover image"
+                onChange={(seoImage) => updateSeo({ seoImage })}
               />
             </ContentFullViewPanelField>
           </ContentFullViewPanelSection>

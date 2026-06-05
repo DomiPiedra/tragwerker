@@ -37,7 +37,7 @@ export function ContentFullViewSettingsMenu({
         open={open}
         onOpenChange={onOpenChange}
         title="Site Settings"
-        subtitle="Page metadata and publishing options."
+        subtitle="Publishing and visibility for this page."
       >
         <div className="space-y-4">{children}</div>
       </ContentFullViewPanel>

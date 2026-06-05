@@ -19,6 +19,8 @@ export default async function TeamPage({
     role: member.role,
     bio: member.bio,
     avatarUrl: member.avatarUrl,
+    published: member.published,
+    publishedAt: member.publishedAt ? member.publishedAt.toISOString() : null,
     updatedAt: member.updatedAt.toISOString(),
     createdAt: member.createdAt.toISOString(),
   }));

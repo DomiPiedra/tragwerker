@@ -41,6 +41,8 @@ export async function createEventQuick() {
       endsAt: null,
       location: null,
       description: null,
+      published: false,
+      publishedAt: null,
     },
   });
 
@@ -67,6 +69,8 @@ export async function createEventQuick() {
       endsAt: event.endsAt ? event.endsAt.toISOString() : null,
       location: event.location,
       description: event.description,
+      published: event.published,
+      publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
       updatedAt: event.updatedAt.toISOString(),
       createdAt: event.createdAt.toISOString(),
     },
@@ -82,6 +86,8 @@ export async function updateEvent(formData: FormData) {
   const endsAtRaw = formData.get("endsAt")?.toString() ?? "";
   const locationRaw = formData.get("location")?.toString().trim();
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const publishedRaw = formData.get("published")?.toString() ?? "false";
+  const publishedAtRaw = formData.get("publishedAt")?.toString() ?? "";
 
   if (!id) return { ok: false as const, error: "Missing event id." };
   if (!title) return { ok: false as const, error: "Title is required." };
@@ -116,6 +122,16 @@ export async function updateEvent(formData: FormData) {
     endsAt = parsed;
   }
 
+  const published = publishedRaw === "true";
+  let publishedAt: Date | null = null;
+  if (publishedAtRaw.trim().length > 0) {
+    const parsed = new Date(publishedAtRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      return { ok: false as const, error: "Invalid published date." };
+    }
+    publishedAt = parsed;
+  }
+
   const event = await prisma.event.update({
     where: { id },
     data: {
@@ -125,6 +141,8 @@ export async function updateEvent(formData: FormData) {
       endsAt,
       location: locationRaw ? locationRaw : null,
       description: descriptionRaw ? descriptionRaw : null,
+      published,
+      publishedAt: published ? publishedAt ?? new Date() : null,
     },
   });
 
@@ -151,6 +169,8 @@ export async function updateEvent(formData: FormData) {
       endsAt: event.endsAt ? event.endsAt.toISOString() : null,
       location: event.location,
       description: event.description,
+      published: event.published,
+      publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
       updatedAt: event.updatedAt.toISOString(),
       createdAt: event.createdAt.toISOString(),
     },

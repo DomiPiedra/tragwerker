@@ -25,6 +25,14 @@ import {
 } from "lucide-react";
 
 import { ContentCreateButton } from "@/components/content-create-button";
+import {
+  ContentSiteSettingsFields,
+  ContentSiteSettingsInlineRow,
+} from "@/components/content-site-settings-fields";
+import {
+  isProjectStatusPublished,
+  projectStatusFromPublished,
+} from "@/lib/content-site-settings";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
@@ -433,6 +441,20 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
     });
   }
 
+  function renderProjectSiteSettings(): ReactNode {
+    if (!selected || !draft) return null;
+    return (
+      <ContentSiteSettingsFields
+        published={isProjectStatusPublished(draft.status)}
+        onPublishedChange={(published) =>
+          setDraft((prev) =>
+            prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
+          )
+        }
+      />
+    );
+  }
+
   function renderProjectEditorFields(): ReactNode {
     if (!selected) return null;
     return (
@@ -511,31 +533,14 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
           />
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-          <label
-            htmlFor="status"
-            className="text-muted-foreground flex items-center gap-2 text-sm"
-          >
-            <CircleDot className="size-3.5" />
-            Status
-          </label>
-          <select
-            id="status"
-            value={draft?.status ?? ProjectStatus.Draft}
-            onChange={(e) =>
-              setDraft((prev) =>
-                prev ? { ...prev, status: e.target.value as ProjectStatus } : prev
-              )
-            }
-            className="border-input bg-background h-8 w-full rounded-md border px-2 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            {PROJECT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {formatProjectStatusLabel(s)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ContentSiteSettingsInlineRow
+          published={isProjectStatusPublished(draft?.status ?? ProjectStatus.Draft)}
+          onPublishedChange={(published) =>
+            setDraft((prev) =>
+              prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
+            )
+          }
+        />
 
         <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
           <label
@@ -573,6 +578,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
         onBack={exitFullView}
         onRename={focusContentFullViewRename}
         onDelete={handleFullViewDelete}
+        settingsContent={renderProjectSiteSettings()}
         seoContext={{
           entityType: "project",
           entityId: selected.id,

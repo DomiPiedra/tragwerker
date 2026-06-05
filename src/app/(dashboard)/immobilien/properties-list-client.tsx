@@ -60,6 +60,14 @@ import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 
 import { ContentCreateButton } from "@/components/content-create-button";
+import {
+  ContentSiteSettingsFields,
+  ContentSiteSettingsInlineRow,
+} from "@/components/content-site-settings-fields";
+import {
+  isPropertyStatusPublished,
+  propertyStatusFromPublished,
+} from "@/lib/content-site-settings";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
@@ -363,6 +371,22 @@ export function PropertiesListClient({
     });
   }
 
+  function renderPropertySiteSettings(): ReactNode {
+    if (!selected || !draft) return null;
+    return (
+      <ContentSiteSettingsFields
+        published={isPropertyStatusPublished(draft.status)}
+        onPublishedChange={(published) =>
+          setDraft((prev) =>
+            prev
+              ? { ...prev, status: propertyStatusFromPublished(published, prev.status) }
+              : prev
+          )
+        }
+      />
+    );
+  }
+
   function renderPropertyEditorFields(): ReactNode {
     if (!selected) return null;
     return (
@@ -405,26 +429,16 @@ export function PropertiesListClient({
           />
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
-          <label className="text-muted-foreground flex items-center gap-2 text-sm">
-            <CircleDot className="size-3.5" />
-            Status
-          </label>
-          <select
-            value={draft?.status ?? "draft"}
-            onChange={(e) => setDraft((prev) => (prev ? { ...prev, status: e.target.value } : prev))}
-            className={cn(
-              "h-8 rounded-full border-0 px-4 text-sm font-medium shadow-none outline-none appearance-none",
-              statusClass(draft?.status ?? "draft")
-            )}
-          >
-            {PROPERTY_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ContentSiteSettingsInlineRow
+          published={isPropertyStatusPublished(draft?.status ?? "draft")}
+          onPublishedChange={(published) =>
+            setDraft((prev) =>
+              prev
+                ? { ...prev, status: propertyStatusFromPublished(published, prev.status) }
+                : prev
+            )
+          }
+        />
 
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -479,6 +493,7 @@ export function PropertiesListClient({
         onBack={exitFullView}
         onRename={focusContentFullViewRename}
         onDelete={handleFullViewDelete}
+        settingsContent={renderPropertySiteSettings()}
         seoContext={{
           entityType: "property",
           entityId: selected.id,

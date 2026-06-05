@@ -1,9 +1,9 @@
-version: '3.8'
+name: hcms
 
 services:
   postgres:
     image: postgres:16
-    container_name: h-cms-db
+    container_name: hcms
     restart: always
 
     environment:
@@ -15,7 +15,9 @@ services:
       - "5432:5432"
 
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - hcms_postgres_data:/var/lib/postgresql/data
 
 volumes:
-  postgres_data:
+  hcms_postgres_data:
+    external: true
+    name: hcms2_postgres_data

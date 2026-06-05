@@ -15,7 +15,6 @@ import {
   CircleDot,
   ExternalLink,
   Filter,
-  Link2,
   MoreHorizontal,
   Pencil,
   Search,
@@ -58,6 +57,11 @@ import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 
 import { ContentCreateButton } from "@/components/content-create-button";
+import {
+  ContentSiteSettingsFields,
+  ContentSiteSettingsInlineRow,
+} from "@/components/content-site-settings-fields";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
@@ -69,6 +73,8 @@ type TeamRow = {
   role: string;
   bio: string | null;
   avatarUrl: string | null;
+  published: boolean;
+  publishedAt: string | null;
   updatedAt: string;
   createdAt: string;
 };
@@ -78,7 +84,31 @@ type TeamDraft = {
   role: string;
   bio: string;
   avatarUrl: string;
+  published: boolean;
+  publishedAt: string;
 };
+
+function toLocalInputValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day}T${hh}:${mm}`;
+}
+
+function splitLocalDateTime(value: string) {
+  if (!value) return { date: "", time: "" };
+  const [date = "", time = ""] = value.split("T");
+  return { date, time: time.slice(0, 5) };
+}
+
+function mergeLocalDateTime(date: string, time: string) {
+  if (!date) return "";
+  return `${date}T${time || "00:00"}`;
+}
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
 
@@ -145,6 +175,8 @@ export function TeamListClient({
       role: selected.role || "Editor",
       bio: selected.bio ?? "",
       avatarUrl: selected.avatarUrl ?? "",
+      published: selected.published,
+      publishedAt: toLocalInputValue(selected.publishedAt),
     });
   }, [selected]);
 
@@ -243,7 +275,9 @@ export function TeamListClient({
       draftSnapshot.name.trim() === selectedSnapshot.name &&
       draftSnapshot.role.trim() === (selectedSnapshot.role ?? "Editor") &&
       draftSnapshot.bio.trim() === (selectedSnapshot.bio ?? "") &&
-      draftSnapshot.avatarUrl.trim() === (selectedSnapshot.avatarUrl ?? "");
+      draftSnapshot.avatarUrl.trim() === (selectedSnapshot.avatarUrl ?? "") &&
+      draftSnapshot.published === selectedSnapshot.published &&
+      draftSnapshot.publishedAt.trim() === toLocalInputValue(selectedSnapshot.publishedAt);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -252,6 +286,8 @@ export function TeamListClient({
     formData.set("role", draftSnapshot.role);
     formData.set("bio", draftSnapshot.bio);
     formData.set("avatarUrl", draftSnapshot.avatarUrl);
+    formData.set("published", draftSnapshot.published ? "true" : "false");
+    formData.set("publishedAt", draftSnapshot.publishedAt);
 
     const result = await updateTeamMember(formData);
     if (!result.ok) {
@@ -344,6 +380,24 @@ export function TeamListClient({
     });
   }
 
+  function renderTeamSiteSettings(): ReactNode {
+    if (!selected || !draft) return null;
+    return (
+      <ContentSiteSettingsFields
+        published={draft.published}
+        publishedAt={draft.publishedAt}
+        splitPublishedAt={splitLocalDateTime}
+        mergePublishedAt={mergeLocalDateTime}
+        onPublishedChange={(published) =>
+          setDraft((prev) => (prev ? { ...prev, published } : prev))
+        }
+        onPublishedAtChange={(publishedAt) =>
+          setDraft((prev) => (prev ? { ...prev, publishedAt } : prev))
+        }
+      />
+    );
+  }
+
   function renderTeamEditorFields(): ReactNode {
     if (!selected) return null;
     return (
@@ -387,17 +441,24 @@ export function TeamListClient({
 
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Link2 className="size-3.5" />
-            Avatar URL
+            <User className="size-3.5" />
+            Avatar
           </label>
-          <Input
+          <MediaImagePicker
             value={draft?.avatarUrl ?? ""}
-            className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) =>
-              setDraft((prev) => (prev ? { ...prev, avatarUrl: e.target.value } : prev))
+            fallbackLabel={(draft?.name ?? selected.name).slice(0, 1).toUpperCase() || "?"}
+            onChange={(avatarUrl) =>
+              setDraft((prev) => (prev ? { ...prev, avatarUrl } : prev))
             }
           />
         </div>
+
+        <ContentSiteSettingsInlineRow
+          published={draft?.published ?? false}
+          onPublishedChange={(published) =>
+            setDraft((prev) => (prev ? { ...prev, published } : prev))
+          }
+        />
 
         <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
@@ -427,6 +488,7 @@ export function TeamListClient({
         onBack={exitFullView}
         onRename={focusContentFullViewRename}
         onDelete={handleFullViewDelete}
+        settingsContent={renderTeamSiteSettings()}
         seoContext={{
           entityType: "teamMember",
           entityId: selected.id,

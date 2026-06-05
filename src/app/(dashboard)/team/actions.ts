@@ -15,6 +15,8 @@ export async function createTeamMemberQuick() {
       role: "Editor",
       bio: null,
       avatarUrl: null,
+      published: false,
+      publishedAt: null,
     },
   });
 
@@ -39,6 +41,8 @@ export async function createTeamMemberQuick() {
       role: member.role,
       bio: member.bio,
       avatarUrl: member.avatarUrl,
+      published: member.published,
+      publishedAt: member.publishedAt ? member.publishedAt.toISOString() : null,
       updatedAt: member.updatedAt.toISOString(),
       createdAt: member.createdAt.toISOString(),
     },
@@ -52,9 +56,21 @@ export async function updateTeamMember(formData: FormData) {
   const roleRaw = formData.get("role")?.toString().trim() ?? "";
   const bioRaw = formData.get("bio")?.toString().trim();
   const avatarUrlRaw = formData.get("avatarUrl")?.toString().trim();
+  const publishedRaw = formData.get("published")?.toString() ?? "false";
+  const publishedAtRaw = formData.get("publishedAt")?.toString() ?? "";
 
   if (!id) return { ok: false as const, error: "Missing member id." };
   if (!name) return { ok: false as const, error: "Name is required." };
+
+  const published = publishedRaw === "true";
+  let publishedAt: Date | null = null;
+  if (publishedAtRaw.trim().length > 0) {
+    const parsed = new Date(publishedAtRaw);
+    if (Number.isNaN(parsed.getTime())) {
+      return { ok: false as const, error: "Invalid published date." };
+    }
+    publishedAt = parsed;
+  }
 
   const member = await prisma.teamMember.update({
     where: { id },
@@ -63,6 +79,8 @@ export async function updateTeamMember(formData: FormData) {
       role: roleRaw || "Editor",
       bio: bioRaw ? bioRaw : null,
       avatarUrl: avatarUrlRaw ? avatarUrlRaw : null,
+      published,
+      publishedAt: published ? publishedAt ?? new Date() : null,
     },
   });
 
@@ -87,6 +105,8 @@ export async function updateTeamMember(formData: FormData) {
       role: member.role,
       bio: member.bio,
       avatarUrl: member.avatarUrl,
+      published: member.published,
+      publishedAt: member.publishedAt ? member.publishedAt.toISOString() : null,
       updatedAt: member.updatedAt.toISOString(),
       createdAt: member.createdAt.toISOString(),
     },

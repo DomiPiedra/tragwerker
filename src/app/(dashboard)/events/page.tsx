@@ -21,6 +21,8 @@ export default async function EventsPage({
     endsAt: event.endsAt ? event.endsAt.toISOString() : null,
     location: event.location,
     description: event.description,
+    published: event.published,
+    publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
     updatedAt: event.updatedAt.toISOString(),
     createdAt: event.createdAt.toISOString(),
   }));

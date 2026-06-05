@@ -86,7 +86,7 @@ export function ContentFullViewShell({
             aria-label="Back to list"
             className={cn(
               buttonVariants({ variant: "ghost", size: "icon-sm" }),
-              "size-9 shrink-0 rounded-lg bg-white/70 text-foreground shadow-sm hover:bg-white"
+              "size-9 shrink-0 rounded-full bg-white/70 text-foreground shadow-sm hover:bg-white"
             )}
             onClick={onBack}
           >
@@ -98,7 +98,7 @@ export function ContentFullViewShell({
               render={
                 <button
                   type="button"
-                  className="flex min-w-0 max-w-[min(420px,50vw)] items-center gap-1.5 rounded-lg bg-white/70 px-3 py-2 text-left shadow-sm transition-colors hover:bg-white"
+                  className="flex min-w-0 max-w-[min(420px,50vw)] items-center gap-1.5 rounded-full bg-white/70 px-3 py-2 text-left shadow-sm transition-colors hover:bg-white"
                 />
               }
             >

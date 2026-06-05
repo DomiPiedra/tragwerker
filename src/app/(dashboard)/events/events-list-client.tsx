@@ -58,6 +58,15 @@ import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 
 import { ContentCreateButton } from "@/components/content-create-button";
+import {
+  ContentSiteSettingsFields,
+  ContentSiteSettingsInlineRow,
+} from "@/components/content-site-settings-fields";
+import {
+  mergeLocalDateTime,
+  splitLocalDateTime,
+  toLocalInputValue,
+} from "@/lib/content-site-settings";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
 
@@ -71,6 +80,8 @@ type EventRow = {
   endsAt: string | null;
   location: string | null;
   description: string | null;
+  published: boolean;
+  publishedAt: string | null;
   updatedAt: string;
   createdAt: string;
 };
@@ -82,22 +93,13 @@ type EventDraft = {
   endsAt: string;
   location: string;
   description: string;
+  published: boolean;
+  publishedAt: string;
 };
 
 type EventStage = "Upcoming" | "Ongoing" | "Past";
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
-
-function toLocalInputValue(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${hh}:${mm}`;
-}
 
 function eventStage(event: EventRow): EventStage {
   const now = new Date();
@@ -176,6 +178,8 @@ export function EventsListClient({
       endsAt: toLocalInputValue(selected.endsAt),
       location: selected.location ?? "",
       description: selected.description ?? "",
+      published: selected.published,
+      publishedAt: toLocalInputValue(selected.publishedAt),
     });
   }, [selected]);
 
@@ -276,7 +280,9 @@ export function EventsListClient({
       draftSnapshot.startsAt.trim() === toLocalInputValue(selectedSnapshot.startsAt) &&
       draftSnapshot.endsAt.trim() === toLocalInputValue(selectedSnapshot.endsAt) &&
       draftSnapshot.location.trim() === (selectedSnapshot.location ?? "") &&
-      draftSnapshot.description.trim() === (selectedSnapshot.description ?? "");
+      draftSnapshot.description.trim() === (selectedSnapshot.description ?? "") &&
+      draftSnapshot.published === selectedSnapshot.published &&
+      draftSnapshot.publishedAt.trim() === toLocalInputValue(selectedSnapshot.publishedAt);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -287,6 +293,8 @@ export function EventsListClient({
     formData.set("endsAt", draftSnapshot.endsAt);
     formData.set("location", draftSnapshot.location);
     formData.set("description", draftSnapshot.description);
+    formData.set("published", draftSnapshot.published ? "true" : "false");
+    formData.set("publishedAt", draftSnapshot.publishedAt);
 
     const result = await updateEvent(formData);
     if (!result.ok) {
@@ -377,6 +385,24 @@ export function EventsListClient({
     });
   }
 
+  function renderEventSiteSettings(): ReactNode {
+    if (!selected || !draft) return null;
+    return (
+      <ContentSiteSettingsFields
+        published={draft.published}
+        publishedAt={draft.publishedAt}
+        splitPublishedAt={splitLocalDateTime}
+        mergePublishedAt={mergeLocalDateTime}
+        onPublishedChange={(published) =>
+          setDraft((prev) => (prev ? { ...prev, published } : prev))
+        }
+        onPublishedAtChange={(publishedAt) =>
+          setDraft((prev) => (prev ? { ...prev, publishedAt } : prev))
+        }
+      />
+    );
+  }
+
   function renderEventEditorFields(): ReactNode {
     if (!selected) return null;
     return (
@@ -457,6 +483,13 @@ export function EventsListClient({
           />
         </div>
 
+        <ContentSiteSettingsInlineRow
+          published={draft?.published ?? false}
+          onPublishedChange={(published) =>
+            setDraft((prev) => (prev ? { ...prev, published } : prev))
+          }
+        />
+
         <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
             <CircleDot className="size-3.5" />
@@ -487,6 +520,7 @@ export function EventsListClient({
         onBack={exitFullView}
         onRename={focusContentFullViewRename}
         onDelete={handleFullViewDelete}
+        settingsContent={renderEventSiteSettings()}
         seoContext={{
           entityType: "event",
           entityId: selected.id,
