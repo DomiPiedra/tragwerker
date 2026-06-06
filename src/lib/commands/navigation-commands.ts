@@ -92,6 +92,21 @@ export const navigationCommands: CommandDefinition[] = [
     },
   },
   {
+    id: "nav-jobs",
+    title: "Go to Jobs",
+    description: "Open job listings",
+    category: "Navigation",
+    keywords: ["jobs", "careers", "hiring", "openings", "positions"],
+    aliases: ["open jobs", "careers page"],
+    shortcut: ["G", "J"],
+    priority: 79,
+    icon: "Briefcase",
+    action: ({ navigate, close }) => {
+      navigate("/jobs");
+      close();
+    },
+  },
+  {
     id: "nav-media",
     title: "Go to Media",
     description: "Open media library",

@@ -11,6 +11,7 @@ export const CONTENT_SEO_ENTITY_TYPES = [
   "portfolioItem",
   "event",
   "property",
+  "job",
 ] as const;
 
 export type ContentSeoEntityType = (typeof CONTENT_SEO_ENTITY_TYPES)[number];

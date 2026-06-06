@@ -5,6 +5,7 @@ export const CONTENT_ENTITY_TYPES = [
   "teamMember",
   "event",
   "property",
+  "job",
 ] as const;
 
 export type ContentEntityType = (typeof CONTENT_ENTITY_TYPES)[number];
@@ -16,6 +17,7 @@ const ENTITY_SECTION_PATH: Record<ContentEntityType, string> = {
   teamMember: "team",
   event: "events",
   property: "immobilien",
+  job: "jobs",
 };
 
 export type DashboardRecentBoard = {
@@ -46,6 +48,7 @@ export function parseContentOpenFromRoute(
     { prefix: "/team", entityType: "teamMember", param: "memberId" },
     { prefix: "/events", entityType: "event", param: "eventId" },
     { prefix: "/immobilien", entityType: "property", param: "propertyId" },
+    { prefix: "/jobs", entityType: "job", param: "jobId" },
   ];
 
   for (const route of routes) {

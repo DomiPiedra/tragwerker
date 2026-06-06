@@ -4,8 +4,12 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-/** Delegate added with ContentOpen; used to detect a stale singleton after schema changes in dev. */
-const REQUIRED_DELEGATE = "contentOpen" as const;
+/** Delegates from recent schema changes; stale dev singletons are recreated when any are missing. */
+const REQUIRED_DELEGATES = ["contentOpen", "job"] as const;
+
+function hasRequiredDelegates(client: PrismaClient): boolean {
+  return REQUIRED_DELEGATES.every((key) => key in client);
+}
 
 function createPrismaClient() {
   return new PrismaClient({
@@ -15,7 +19,7 @@ function createPrismaClient() {
 
 function getPrismaClient(): PrismaClient {
   const cached = globalForPrisma.prisma;
-  if (cached && REQUIRED_DELEGATE in cached) {
+  if (cached && hasRequiredDelegates(cached)) {
     return cached;
   }
 

@@ -80,6 +80,36 @@ export async function loadSeoContentContext(
       if (!row) return null;
       return buildContext(label, row.title, row.summary ?? "");
     }
+    case "job": {
+      const row = await prisma.job.findUnique({
+        where: { id: entityId },
+        select: {
+          title: true,
+          position: true,
+          department: true,
+          location: true,
+          shortDescription: true,
+          content: true,
+          responsibilities: true,
+          requirements: true,
+          benefits: true,
+        },
+      });
+      if (!row) return null;
+      const body = [
+        row.position ?? "",
+        row.department ?? "",
+        row.location ?? "",
+        row.shortDescription ?? "",
+        row.content ?? "",
+        row.responsibilities ?? "",
+        row.requirements ?? "",
+        row.benefits ?? "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      return buildContext(label, row.title, body);
+    }
     default:
       return null;
   }

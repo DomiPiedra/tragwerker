@@ -22,6 +22,7 @@ const ENTITY_LABELS: Record<ContentEntityType, string> = {
   teamMember: "Team",
   event: "Event",
   property: "Immobilien",
+  job: "Jobs",
 };
 
 function clipPreview(text: string | null | undefined, max = 80): string {
@@ -179,6 +180,30 @@ async function resolveEntity(
           row.status,
           row.slug,
           ENTITY_LABELS.property,
+        ],
+      };
+    }
+    case "job": {
+      const row = await prisma.job.findUnique({
+        where: { id: entityId },
+        select: {
+          title: true,
+          slug: true,
+          department: true,
+          location: true,
+          published: true,
+          shortDescription: true,
+        },
+      });
+      if (!row) return null;
+      return {
+        title: row.title,
+        slug: row.slug,
+        previewCells: [
+          row.department ?? "",
+          row.location ?? "",
+          row.published ? "Published" : "Draft",
+          clipPreview(row.shortDescription),
         ],
       };
     }

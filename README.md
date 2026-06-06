@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# H CMS
 
-## Getting Started
+AI-first content management dashboard built with Next.js, Prisma, and PostgreSQL.
 
-First, run the development server:
+## Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 20+
+- Docker Desktop (for local PostgreSQL)
+
+## Quick start
+
+1. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+2. **Environment**
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Edit `.env.local` if needed. Defaults work with the bundled Docker database.
+
+3. **Database**
+
+   ```bash
+   npm run setup
+   ```
+
+   This starts PostgreSQL (`docker compose up -d`) and applies Prisma migrations.
+
+4. **Run the app**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000).
+
+5. **Sign in**
+
+   On first run, the bootstrap admin from `.env.local` is created automatically:
+
+   - Username: `admin`
+   - Password: `admin`
+
+   Change `AUTH_BOOTSTRAP_*` in `.env.local` before first login in production.
+
+## Project structure
+
+```
+src/
+  app/              # Next.js App Router (pages, API routes, server actions)
+    (dashboard)/    # Authenticated CMS routes
+    login/          # Public login
+    api/            # REST endpoints
+  components/       # UI components
+  lib/              # Auth, Prisma, AI, SEO, commands
+  generated/prisma/ # Prisma client (generated on install)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Useful commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start dev server (Turbopack) |
+| `npm run setup` | Start DB + run migrations |
+| `npm run db:up` | Start PostgreSQL container |
+| `npm run db:migrate` | Apply pending migrations |
+| `npm run build` | Production build |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Troubleshooting
 
-## Learn More
+**`Can't reach database server at localhost:5432`**
 
-To learn more about Next.js, take a look at the following resources:
+PostgreSQL is not running. Start it with:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run db:up
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Login says no accounts yet**
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Add `AUTH_BOOTSTRAP_ADMIN_USERNAME` and `AUTH_BOOTSTRAP_ADMIN_PASSWORD` to `.env.local`, restart `npm run dev`, then sign in.

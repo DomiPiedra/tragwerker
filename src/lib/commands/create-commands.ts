@@ -89,4 +89,19 @@ export const createCommands: CommandDefinition[] = [
       close();
     },
   },
+  {
+    id: "create-job",
+    title: "Create Job",
+    description: "Create a new job listing draft",
+    category: "Create",
+    keywords: ["job", "career", "hiring", "opening", "position", "new"],
+    aliases: ["new job", "create job", "add job listing"],
+    shortcut: ["J"],
+    priority: 83,
+    icon: "Plus",
+    action: ({ navigate, close }) => {
+      navigate("/jobs");
+      close();
+    },
+  },
 ];

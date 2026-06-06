@@ -19,7 +19,14 @@ type ContentItemSuggestion = {
   priority: number;
 };
 
-type ContentType = "projects" | "portfolio" | "team" | "events" | "blog" | "properties";
+type ContentType =
+  | "projects"
+  | "portfolio"
+  | "team"
+  | "events"
+  | "blog"
+  | "properties"
+  | "jobs";
 
 function buildTextSearchQuery(query: string) {
   return {
@@ -37,6 +44,7 @@ function mapLatestSubjectToType(subjectRaw: string): ContentType | null {
   if (/\bevents?\b|calendar/.test(subject)) return "events";
   if (/\bteam\b|members?|people|staff/.test(subject)) return "team";
   if (/\bblog\b|\bposts?\b|\barticles?\b/.test(subject)) return "blog";
+  if (/\bjobs?\b|careers?|hiring|openings?|positions?/.test(subject)) return "jobs";
   return null;
 }
 
@@ -139,6 +147,28 @@ async function fetchLatestItems(type: ContentType, limit: number): Promise<Conte
         priority: 95,
       }));
     }
+    case "jobs": {
+      const rows = await prisma.job.findMany({
+        take: limit,
+        orderBy: { updatedAt: "desc" },
+      });
+      return rows.map((item) => ({
+        id: `content-job-${item.id}`,
+        title: item.title,
+        description: `Job · ${item.department ?? "General"} · ${item.location ?? "Remote"}`,
+        path: `/jobs?jobId=${encodeURIComponent(item.id)}&jobView=full`,
+        list: "Jobs",
+        keywords: [
+          "job",
+          "career",
+          item.slug,
+          item.department ?? "",
+          item.location ?? "",
+          item.published ? "published" : "draft",
+        ],
+        priority: 94,
+      }));
+    }
     default: {
       const rows = await prisma.property.findMany({
         take: limit,
@@ -207,7 +237,7 @@ export async function GET(request: Request) {
     });
   }
 
-  const [projects, portfolioItems, teamMembers, events, properties] = await Promise.all([
+  const [projects, portfolioItems, teamMembers, events, jobs, properties] = await Promise.all([
     prisma.project.findMany({
       where: {
         OR: [{ name: search }, { slug: search }, { author: search }, { category: search }],
@@ -232,6 +262,20 @@ export async function GET(request: Request) {
     prisma.event.findMany({
       where: {
         OR: [{ title: search }, { slug: search }, { location: search }, { description: search }],
+      },
+      take: LIMIT_PER_LIST,
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.job.findMany({
+      where: {
+        OR: [
+          { title: search },
+          { slug: search },
+          { position: search },
+          { department: search },
+          { location: search },
+          { shortDescription: search },
+        ],
       },
       take: LIMIT_PER_LIST,
       orderBy: { updatedAt: "desc" },
@@ -290,6 +334,22 @@ export async function GET(request: Request) {
       list: "Blog",
       keywords: ["blog", item.slug, item.excerpt ?? "", item.published ? "published" : "draft"],
       priority: 95,
+    })),
+    ...jobs.map((item) => ({
+      id: `content-job-${item.id}`,
+      title: item.title,
+      description: `Job · ${item.department ?? "General"} · ${item.location ?? "Remote"}`,
+      path: `/jobs?jobId=${encodeURIComponent(item.id)}&jobView=full`,
+      list: "Jobs",
+      keywords: [
+        "job",
+        "career",
+        item.slug,
+        item.department ?? "",
+        item.location ?? "",
+        item.published ? "published" : "draft",
+      ],
+      priority: 94,
     })),
     ...properties.map((item) => ({
       id: `content-property-${item.id}`,

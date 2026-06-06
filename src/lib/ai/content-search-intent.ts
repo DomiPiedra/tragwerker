@@ -2,12 +2,19 @@ import { z } from "zod";
 
 import { generateObjectWithFallback } from "@/lib/ai/run-with-fallback";
 
-export type ContentSection = "blog" | "projects" | "portfolio" | "team" | "events" | "properties";
+export type ContentSection =
+  | "blog"
+  | "projects"
+  | "portfolio"
+  | "team"
+  | "events"
+  | "properties"
+  | "jobs";
 
 const intentSchema = z.object({
   goal: z.enum(["list_recent", "open_section", "search_specific", "none"]),
   section: z
-    .enum(["blog", "projects", "portfolio", "team", "events", "properties"])
+    .enum(["blog", "projects", "portfolio", "team", "events", "properties", "jobs"])
     .nullable(),
   limit: z.number().min(1).max(24).optional(),
 });
@@ -30,7 +37,7 @@ export async function inferRecentListingIntent(
     temperature: 0.05,
     system: [
       "You classify short natural-language queries for a CMS dashboard search bar.",
-      "Sections: blog (posts/articles), projects, portfolio, team (people), events, properties (immobilien/real estate).",
+      "Sections: blog (posts/articles), projects, portfolio, team (people), events, properties (immobilien/real estate), jobs (careers/hiring/openings).",
       "goal=list_recent: user wants newest/recent/latest items listed (with or without an explicit count).",
       "goal=open_section: they only want to open the section index, not specific recent rows.",
       "goal=search_specific: they are looking for one record by name/topic — not a generic recent list.",

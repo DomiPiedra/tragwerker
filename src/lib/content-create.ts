@@ -5,6 +5,7 @@ export const CONTENT_CREATE_EVENTS = {
   team: "hcms:create-team",
   event: "hcms:create-event",
   property: "hcms:create-property",
+  job: "hcms:create-job",
 } as const;
 
 export type ContentCreateEventName =
@@ -46,6 +47,11 @@ const routes: ContentCreateRoute[] = [
     label: "New Property",
     eventName: CONTENT_CREATE_EVENTS.property,
     match: (p) => p.startsWith("/immobilien"),
+  },
+  {
+    label: "New Job",
+    eventName: CONTENT_CREATE_EVENTS.job,
+    match: (p) => p.startsWith("/jobs"),
   },
 ];
 

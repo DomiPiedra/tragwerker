@@ -5,6 +5,7 @@ const FULL_VIEW_PARAMS = [
   "teamView",
   "eventView",
   "propertyView",
+  "jobView",
 ] as const;
 
 export function isContentFullView(searchParams: URLSearchParams): boolean {

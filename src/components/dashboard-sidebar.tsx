@@ -8,6 +8,7 @@ import {
   Briefcase,
   Building2,
   Calendar,
+  ClipboardList,
   ChevronDown,
   Clock3,
   FileText,
@@ -99,6 +100,12 @@ const contentNav: NavItem[] = [
     label: "Blog",
     href: "/blog",
     match: (p) => p.startsWith("/blog"),
+  },
+  {
+    icon: ClipboardList,
+    label: "Jobs",
+    href: "/jobs",
+    match: (p) => p.startsWith("/jobs"),
   },
   {
     icon: Building2,

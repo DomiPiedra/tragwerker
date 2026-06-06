@@ -41,6 +41,7 @@ defineEntity({
   prismaModel: "Property",
   pathSegment: "immobilien",
 });
+defineEntity({ id: "job", label: "Job", prismaModel: "Job", pathSegment: "jobs" });
 
 /**
  * Register SEO for a new collection at runtime or from a module init.

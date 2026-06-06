@@ -25,6 +25,21 @@ enum UserRole {
   editor
 }
 
+enum EmploymentType {
+  FullTime
+  PartTime
+  Freelance
+  Internship
+  WorkingStudent
+  Contract
+}
+
+enum RemoteType {
+  OnSite
+  Hybrid
+  Remote
+}
+
 model User {
   id           String        @id @default(cuid())
   username     String        @unique
@@ -35,6 +50,7 @@ model User {
   sessions     AuthSession[]
   activities   ActivityLog[]
   contentOpens ContentOpen[]
+  jobs         Job[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -109,6 +125,36 @@ model BlogPost {
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model Job {
+  id               String          @id @default(cuid())
+  title            String
+  slug             String          @unique
+  position         String?
+  department       String?
+  location         String?
+  employmentType   EmploymentType?
+  remoteType       RemoteType?
+  salary           String?
+  applicationEmail String?
+  applicationUrl   String?
+  shortDescription String?
+  content          String?
+  requirements     String?
+  benefits         String?
+  responsibilities String?
+  featured         Boolean         @default(false)
+  published        Boolean         @default(false)
+  publishedAt      DateTime?
+  authorId         String?
+  author           User?           @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([authorId])
+  @@index([published])
+  @@index([department])
 }
 
 model Property {
