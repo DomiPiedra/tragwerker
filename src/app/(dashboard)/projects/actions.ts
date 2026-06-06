@@ -38,14 +38,68 @@ function slugify(input: string): string {
   return s.slice(0, 96) || "project";
 }
 
+function parseOptionalUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
+function parseGalleryUrls(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function authorFromUser(user: { displayName: string; username: string }): string {
+  const displayName = user.displayName.trim();
+  return displayName || user.username;
+}
+
+function serializeProject(project: {
+  id: string;
+  name: string;
+  slug: string;
+  author: string;
+  category: string;
+  status: ProjectStatus;
+  description: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
+  updatedAt: Date;
+  createdAt: Date;
+}) {
+  return {
+    id: project.id,
+    name: project.name,
+    slug: project.slug,
+    author: project.author,
+    category: project.category,
+    status: project.status,
+    description: project.description,
+    heroImageUrl: project.heroImageUrl,
+    galleryUrls: project.galleryUrls,
+    updatedAt: project.updatedAt.toISOString(),
+    createdAt: project.createdAt.toISOString(),
+  };
+}
+
 export async function createProject(formData: FormData) {
-  await requireEditorOrAdmin();
+  const user = await requireEditorOrAdmin();
   const name = formData.get("name")?.toString().trim() ?? "";
   const slugRaw = formData.get("slug")?.toString().trim() ?? "";
   const authorRaw = formData.get("author")?.toString().trim() ?? "";
   const categoryRaw = formData.get("category")?.toString().trim() ?? "";
   const statusRaw = formData.get("status")?.toString() ?? "";
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
   if (!name) {
     return { ok: false as const, error: "Name is required." };
@@ -67,10 +121,12 @@ export async function createProject(formData: FormData) {
     data: {
       name,
       slug: candidate,
-      author: authorRaw || "Sarah",
+      author: authorRaw || authorFromUser(user),
       category: categoryRaw || "Residential",
       status: parseProjectStatus(statusRaw),
       description: descriptionRaw ? descriptionRaw : null,
+      heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+      galleryUrls: parseGalleryUrls(galleryUrlsRaw),
     },
   });
 
@@ -106,6 +162,8 @@ export async function updateProject(formData: FormData) {
   const categoryRaw = formData.get("category")?.toString().trim() ?? "";
   const statusRaw = formData.get("status")?.toString() ?? "";
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
   if (!id) return { ok: false as const, error: "Missing project id." };
   if (!name) return { ok: false as const, error: "Name is required." };
@@ -117,6 +175,8 @@ export async function updateProject(formData: FormData) {
     name: string;
     author: string;
     description: string | null;
+    heroImageUrl?: string | null;
+    galleryUrls?: string[];
     category?: string;
     status?: ProjectStatus;
   } | null = null;
@@ -130,6 +190,8 @@ export async function updateProject(formData: FormData) {
           name: true,
           author: true,
           description: true,
+          heroImageUrl: true,
+          galleryUrls: true,
           ...(supportsCategory ? { category: true } : {}),
           ...(supportsStatus ? { status: true } : {}),
         },
@@ -165,13 +227,17 @@ export async function updateProject(formData: FormData) {
       slug: string;
       author: string;
       description: string | null;
+      heroImageUrl: string | null;
+      galleryUrls: string[];
       category?: string;
       status?: ProjectStatus;
     } = {
       name,
       slug,
-      author: authorRaw || "Sarah",
+      author: authorRaw || current.author,
       description: descriptionRaw ? descriptionRaw : null,
+      heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+      galleryUrls: parseGalleryUrls(galleryUrlsRaw),
     };
     if (supportsCategory) {
       updateData.category = categoryRaw || "Residential";
@@ -215,6 +281,12 @@ export async function updateProject(formData: FormData) {
   if ((current.description ?? "") !== (project.description ?? "")) {
     changedFields.push("description");
   }
+  if ((current.heroImageUrl ?? "") !== (project.heroImageUrl ?? "")) {
+    changedFields.push("heroImageUrl");
+  }
+  if (JSON.stringify(current.galleryUrls ?? []) !== JSON.stringify(project.galleryUrls ?? [])) {
+    changedFields.push("galleryUrls");
+  }
 
   await logActivity({
     entityType: "project",
@@ -234,22 +306,12 @@ export async function updateProject(formData: FormData) {
 
   return {
     ok: true as const,
-    project: {
-      id: project.id,
-      name: project.name,
-      slug: project.slug,
-      author: project.author,
-      category: project.category,
-      status: project.status,
-      description: project.description,
-      updatedAt: project.updatedAt.toISOString(),
-      createdAt: project.createdAt.toISOString(),
-    },
+    project: serializeProject(project),
   };
 }
 
 export async function createProjectQuick() {
-  await requireEditorOrAdmin();
+  const user = await requireEditorOrAdmin();
   const baseName = "Untitled Project";
   const baseSlug = slugify(baseName);
   let candidate = baseSlug;
@@ -267,7 +329,7 @@ export async function createProjectQuick() {
     data: {
       name: baseName,
       slug: candidate,
-      author: "Sarah",
+      author: authorFromUser(user),
       category: "Residential",
       status: ProjectStatus.Draft,
       description: null,
@@ -289,17 +351,7 @@ export async function createProjectQuick() {
 
   return {
     ok: true as const,
-    project: {
-      id: project.id,
-      name: project.name,
-      slug: project.slug,
-      author: project.author,
-      category: project.category,
-      status: project.status,
-      description: project.description,
-      updatedAt: project.updatedAt.toISOString(),
-      createdAt: project.createdAt.toISOString(),
-    },
+    project: serializeProject(project),
   };
 }
 

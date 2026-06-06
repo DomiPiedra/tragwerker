@@ -17,6 +17,8 @@ export default async function ProjectsPage() {
     category: p.category ?? "Residential",
     status: p.status ?? ProjectStatus.Draft,
     description: p.description,
+    heroImageUrl: p.heroImageUrl,
+    galleryUrls: p.galleryUrls ?? [],
     updatedAt: p.updatedAt.toISOString(),
     createdAt: p.createdAt.toISOString(),
   }));

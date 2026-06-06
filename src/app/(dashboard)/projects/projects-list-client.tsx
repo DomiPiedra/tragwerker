@@ -15,6 +15,7 @@ import {
   CircleDot,
   ExternalLink,
   Filter,
+  ImageIcon,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -63,6 +64,8 @@ import {
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import {
   contentPreviewPanelClassName,
   useContentRowClickHandlers,
@@ -79,6 +82,8 @@ type ProjectRow = {
   category: string;
   status: ProjectStatus;
   description: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
   updatedAt: string;
   createdAt: string;
 };
@@ -90,6 +95,8 @@ type ProjectDraft = {
   category: string;
   status: ProjectStatus;
   description: string;
+  heroImageUrl: string;
+  galleryUrls: string[];
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", {
@@ -115,6 +122,16 @@ function statusBadgeClass(status: ProjectStatus) {
   return "bg-zinc-100 text-zinc-700";
 }
 
+function slugifyProjectName(input: string): string {
+  const s = input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return s.slice(0, 96) || "project";
+}
+
 export function ProjectsListClient({ initialProjects }: { initialProjects: ProjectRow[] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -130,6 +147,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
   const [isPending, startTransition] = useTransition();
   const { isResizing, startPanelResize, panelStyle } = usePreviewPanelResize();
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  const slugSyncedRef = useRef(true);
   const allAuthors = useMemo(
     () => Array.from(new Set(projects.map((p) => p.author || "Sarah"))).sort(),
     [projects]
@@ -196,7 +214,10 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       category: selected.category || "Residential",
       status: selected.status ?? ProjectStatus.Draft,
       description: selected.description ?? "",
+      heroImageUrl: selected.heroImageUrl ?? "",
+      galleryUrls: selected.galleryUrls ?? [],
     });
+    slugSyncedRef.current = slugifyProjectName(selected.name) === selected.slug;
   }, [selected]);
 
   useEffect(() => {
@@ -294,7 +315,10 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       draftAuthor.trim() === currentAuthor &&
       draftSnapshot.category.trim() === (selectedSnapshot.category ?? "Residential") &&
       draftSnapshot.status === (selectedSnapshot.status ?? ProjectStatus.Draft) &&
-      draftSnapshot.description.trim() === currentDescription;
+      draftSnapshot.description.trim() === currentDescription &&
+      draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
+      JSON.stringify(draftSnapshot.galleryUrls) ===
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -305,6 +329,8 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
     formData.set("category", draftSnapshot.category);
     formData.set("status", draftSnapshot.status);
     formData.set("description", draftSnapshot.description);
+    formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
+    formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
 
     const result = await updateProject(formData);
     if (!result.ok) {
@@ -343,6 +369,8 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       formData.set("category", next.category);
       formData.set("status", next.status);
       formData.set("description", next.description ?? "");
+      formData.set("heroImageUrl", next.heroImageUrl ?? "");
+      formData.set("galleryUrls", JSON.stringify(next.galleryUrls ?? []));
 
       const result = await updateProject(formData);
       if (!result.ok) {
@@ -441,6 +469,22 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
     });
   }
 
+  function updateDraftName(name: string) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        name,
+        slug: slugSyncedRef.current ? slugifyProjectName(name) : prev.slug,
+      };
+    });
+  }
+
+  function updateDraftSlug(slug: string) {
+    slugSyncedRef.current = false;
+    setDraft((prev) => (prev ? { ...prev, slug } : prev));
+  }
+
   function renderProjectSiteSettings(): ReactNode {
     if (!selected || !draft) return null;
     return (
@@ -480,9 +524,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
             value={draft?.name ?? ""}
             required
             className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) =>
-              setDraft((prev) => (prev ? { ...prev, name: e.target.value } : prev))
-            }
+            onChange={(e) => updateDraftName(e.target.value)}
           />
         </div>
 
@@ -499,9 +541,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
             value={draft?.slug ?? ""}
             required
             className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) =>
-              setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))
-            }
+            onChange={(e) => updateDraftSlug(e.target.value)}
           />
         </div>
 
@@ -561,6 +601,38 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
               )
             }
           />
+        </div>
+
+        <div className="pt-4">
+          <h3 className="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wide uppercase">
+            Media
+          </h3>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Hero image
+            </label>
+            <MediaImagePicker
+              value={draft?.heroImageUrl ?? ""}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={(heroImageUrl) =>
+                setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev))
+              }
+            />
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Gallery
+            </label>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
         </div>
 
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
