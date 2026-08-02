@@ -102,7 +102,7 @@ export const navigationCommands: CommandDefinition[] = [
     priority: 79,
     icon: "Briefcase",
     action: ({ navigate, close }) => {
-      navigate("/jobs");
+      navigate("/cms/jobs");
       close();
     },
   },

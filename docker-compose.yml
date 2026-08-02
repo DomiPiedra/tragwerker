@@ -1,23 +1,21 @@
-name: hcms
+name: tragwerker
 
 services:
   postgres:
     image: postgres:16
-    container_name: hcms
+    container_name: tragwerker-db
     restart: always
 
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: hcms
+      POSTGRES_DB: tragwerker
 
     ports:
-      - "5432:5432"
+      - "5435:5432"
 
     volumes:
-      - hcms_postgres_data:/var/lib/postgresql/data
+      - tragwerker_postgres_data:/var/lib/postgresql/data
 
 volumes:
-  hcms_postgres_data:
-    external: true
-    name: hcms2_postgres_data
+  tragwerker_postgres_data:

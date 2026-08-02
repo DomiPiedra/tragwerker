@@ -278,7 +278,7 @@ export async function requireEditorOrAdmin(): Promise<AuthUser> {
 export async function requireAdmin(): Promise<AuthUser> {
   const user = await requireUser();
   if (user.role !== UserRole.admin) {
-    redirect("/");
+    redirect("/cms");
   }
   return user;
 }

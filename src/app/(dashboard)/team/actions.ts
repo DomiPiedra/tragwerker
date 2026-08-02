@@ -29,6 +29,7 @@ export async function createTeamMemberQuick() {
   });
 
   revalidatePath("/");
+  revalidatePath("/menschen");
   revalidatePath("/team");
 
   scheduleContentSeoGeneration("teamMember", member.id);
@@ -93,6 +94,7 @@ export async function updateTeamMember(formData: FormData) {
   });
 
   revalidatePath("/");
+  revalidatePath("/menschen");
   revalidatePath("/team");
 
   scheduleContentSeoGeneration("teamMember", member.id);
@@ -133,6 +135,7 @@ export async function deleteTeamMember(id: string) {
   });
 
   revalidatePath("/");
+  revalidatePath("/menschen");
   revalidatePath("/team");
   return { ok: true as const };
 }

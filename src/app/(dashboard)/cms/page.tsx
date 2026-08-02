@@ -3,7 +3,7 @@ import { getDashboardRecentBoards } from "@/lib/content-open";
 import { DashboardBoardsGrid } from "@/components/dashboard-boards-grid";
 import { DashboardCreateInput } from "@/components/dashboard-create-input";
 
-export default async function DashboardPage() {
+export default async function CmsDashboardPage() {
   const user = await requireUser();
 
   const [allBoards, myBoards] = await Promise.all([

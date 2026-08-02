@@ -8,8 +8,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "H CMS",
-  description: "Content management dashboard",
+  title: "Tragwerker",
+  description: "Ingenieurbüro für Tragwerksplanung und Prüfung",
 };
 
 export default function RootLayout({
@@ -19,14 +19,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="de"
       className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
     >
       <body className={`${GeistSans.className} flex min-h-full flex-col`}>
-        <TooltipProvider>
-          {children}
-          <GlobalCommandBar />
-        </TooltipProvider>
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

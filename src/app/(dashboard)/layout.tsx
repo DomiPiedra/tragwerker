@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { DashboardShell } from "@/components/dashboard-shell";
+import { GlobalCommandBar } from "@/components/command/global-command-bar";
 
 export default async function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default async function DashboardLayout({
       }}
     >
       {children}
+      <GlobalCommandBar />
     </DashboardShell>
   );
 }

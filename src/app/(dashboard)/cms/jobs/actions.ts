@@ -79,7 +79,7 @@ export async function createJobQuick() {
   });
 
   revalidatePath("/");
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
 
   scheduleContentSeoGeneration("job", job.id);
 
@@ -169,7 +169,7 @@ export async function updateJob(formData: FormData) {
   });
 
   revalidatePath("/");
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
 
   scheduleContentSeoGeneration("job", job.id);
 
@@ -196,7 +196,7 @@ export async function deleteJob(id: string) {
   });
 
   revalidatePath("/");
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
   return { ok: true as const };
 }
 
@@ -225,7 +225,7 @@ export async function deleteJobsBulk(ids: string[]) {
   }
 
   revalidatePath("/");
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
   return { ok: true as const, deletedCount: rows.length };
 }
 
@@ -261,6 +261,6 @@ export async function publishJobsBulk(ids: string[], published: boolean) {
   }
 
   revalidatePath("/");
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
   return { ok: true as const, jobs: rows.map(serializeJob) };
 }

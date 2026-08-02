@@ -74,8 +74,16 @@ model Project {
   category      String        @default("Residential")
   status        ProjectStatus @default(Draft)
   description   String?
+  excerpt       String?
+  year          Int?
+  period        String?
+  location      String?
+  client        String?
+  architect     String?
   heroImageUrl  String?
   galleryUrls   String[]      @default([])
+  technicalData Json?
+  featured      Boolean       @default(false)
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -97,6 +105,9 @@ model TeamMember {
   role        String
   bio         String?
   avatarUrl   String?
+  expertise   String[]  @default([])
+  featured    Boolean   @default(false)
+  sortOrder   Int       @default(0)
   published   Boolean   @default(false)
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -222,24 +233,66 @@ model ContentSeo {
 
 /// Static site pages (SEO-enabled collection).
 model Page {
-  id        String        @id @default(cuid())
-  title     String
-  slug      String        @unique
-  body      String?
-  status    ProjectStatus @default(Draft)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  body         String?       @db.Text
+  excerpt      String?
+  heroImageUrl String?
+  status       ProjectStatus @default(Draft)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 /// Service offerings (SEO-enabled collection).
 model Service {
-  id          String        @id @default(cuid())
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  summary        String?
+  heroImageUrl   String?
+  introduction   String?       @db.Text
+  sections       Json?
+  ctaHeadline    String?
+  ctaText        String?
+  ctaButtonLabel String?
+  ctaEmail       String?
+  status         ProjectStatus @default(Draft)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+/// Tragwerker website — awards & recognition (website layer collection).
+model Award {
+  id           String   @id @default(cuid())
+  title        String
+  year         Int
+  category     String
+  description  String?  @db.Text
+  organization String?
+  projectName  String?
+  sortOrder    Int      @default(0)
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([published, sortOrder])
+}
+
+/// Tragwerker website — publications (website layer collection).
+model Publication {
+  id          String   @id @default(cuid())
   title       String
-  slug        String        @unique
-  summary     String?
-  status      ProjectStatus @default(Draft)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  author      String
+  year        Int
+  publication String
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published, sortOrder])
 }
 
 model MediaAsset {

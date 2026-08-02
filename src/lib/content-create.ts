@@ -51,7 +51,7 @@ const routes: ContentCreateRoute[] = [
   {
     label: "New Job",
     eventName: CONTENT_CREATE_EVENTS.job,
-    match: (p) => p.startsWith("/jobs"),
+    match: (p) => p.startsWith("/cms/jobs"),
   },
 ];
 

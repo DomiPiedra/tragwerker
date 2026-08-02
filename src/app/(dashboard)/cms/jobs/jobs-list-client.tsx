@@ -389,14 +389,14 @@ export function JobsListClient({
       if (!result.ok) {
         setError(result.error);
         setIsGeneratingContent(false);
-        router.replace(`/jobs?jobId=${encodeURIComponent(fullViewJobId)}&jobView=full`);
+        router.replace(`/cms/jobs?jobId=${encodeURIComponent(fullViewJobId)}&jobView=full`);
         return;
       }
 
       setJobs((prev) => prev.map((j) => (j.id === result.job.id ? result.job : j)));
       setDraft(jobToDraft(result.job));
       setIsGeneratingContent(false);
-      router.replace(`/jobs?jobId=${encodeURIComponent(fullViewJobId)}&jobView=full`);
+      router.replace(`/cms/jobs?jobId=${encodeURIComponent(fullViewJobId)}&jobView=full`);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullViewJobId, initialGenerateContent, isFullJobView]);
@@ -462,12 +462,12 @@ export function JobsListClient({
     setError(null);
     setSelectedId(jobId);
     if (isFullJobView) {
-      router.push(`/jobs?jobId=${encodeURIComponent(jobId)}`);
+      router.push(`/cms/jobs?jobId=${encodeURIComponent(jobId)}`);
     }
   }
 
   function openJobFullView(job: SerializedJob) {
-    router.push(`/jobs?jobId=${encodeURIComponent(job.id)}&jobView=full`);
+    router.push(`/cms/jobs?jobId=${encodeURIComponent(job.id)}&jobView=full`);
   }
 
   const handleQuickCreate = useCallback(() => {
@@ -489,7 +489,7 @@ export function JobsListClient({
     setError(null);
     startTransition(async () => {
       await persistDraft(selectedSnapshot, draftSnapshot);
-      router.push("/jobs");
+      router.push("/cms/jobs");
     });
   }
 
@@ -502,7 +502,7 @@ export function JobsListClient({
         return;
       }
       setSelectedId(null);
-      router.push("/jobs");
+      router.push("/cms/jobs");
     });
   }
 

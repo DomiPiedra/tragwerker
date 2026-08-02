@@ -49,7 +49,7 @@ export async function loginWithPassword(formData: FormData) {
     }
 
     await createSessionForUser(user.id);
-    redirect("/");
+    redirect("/cms");
   } catch (error) {
     if (isRedirectError(error)) throw error;
     const message =

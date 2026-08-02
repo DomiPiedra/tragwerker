@@ -100,7 +100,7 @@ export const createCommands: CommandDefinition[] = [
     priority: 83,
     icon: "Plus",
     action: ({ navigate, close }) => {
-      navigate("/jobs");
+      navigate("/cms/jobs");
       close();
     },
   },

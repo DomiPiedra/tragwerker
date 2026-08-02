@@ -156,7 +156,7 @@ async function fetchLatestItems(type: ContentType, limit: number): Promise<Conte
         id: `content-job-${item.id}`,
         title: item.title,
         description: `Job · ${item.department ?? "General"} · ${item.location ?? "Remote"}`,
-        path: `/jobs?jobId=${encodeURIComponent(item.id)}&jobView=full`,
+        path: `/cms/jobs?jobId=${encodeURIComponent(item.id)}&jobView=full`,
         list: "Jobs",
         keywords: [
           "job",

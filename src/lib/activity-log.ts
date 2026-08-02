@@ -38,7 +38,7 @@ export function activityEntityHref(entityType: string, entityId: string): string
     case "property":
       return `/immobilien?propertyId=${id}&propertyView=full`;
     case "job":
-      return `/jobs?jobId=${id}&jobView=full`;
+      return `/cms/jobs?jobId=${id}&jobView=full`;
     default:
       return "/";
   }

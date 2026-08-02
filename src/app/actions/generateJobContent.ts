@@ -105,7 +105,7 @@ export async function generateJobContent(input: { jobId: string }) {
     details: "AI content generated for job posting",
   });
 
-  revalidatePath("/jobs");
+  revalidatePath("/cms/jobs");
   scheduleContentSeoGeneration("job", updated.id);
 
   return {

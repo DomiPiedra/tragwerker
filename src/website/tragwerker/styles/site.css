@@ -1,0 +1,111 @@
+.tragwerker-site {
+  --site-ink: #121212;
+  --site-paper: #fafafa;
+  --site-muted: #636363;
+  --site-accent: #7a6b55;
+  --site-line: #e8e8e8;
+  --site-surface: #f0f0f0;
+  --site-header-offset: 5.5rem;
+  --site-grid-gap: 1rem;
+  background: var(--site-paper);
+  color: var(--site-ink);
+  font-family: var(--font-site-sans);
+}
+
+.tragwerker-site .font-site-serif {
+  font-family: var(--font-site-serif);
+}
+
+.tragwerker-site .font-site-sans {
+  font-family: var(--font-site-sans);
+}
+
+.tragwerker-site .site-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 1320px;
+  padding-inline: 2rem;
+}
+
+/* 8-column layout system */
+.tragwerker-site .site-grid {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  column-gap: var(--site-grid-gap);
+  row-gap: calc(var(--site-grid-gap) * 2);
+}
+
+.tragwerker-site .site-grid-span-2 {
+  grid-column: span 8;
+}
+
+.tragwerker-site .site-grid-span-3 {
+  grid-column: span 8;
+}
+
+.tragwerker-site .site-grid-span-4 {
+  grid-column: span 8;
+}
+
+.tragwerker-site .site-grid-span-5 {
+  grid-column: span 8;
+}
+
+.tragwerker-site .site-grid-span-6 {
+  grid-column: span 8;
+}
+
+.tragwerker-site .site-grid-span-8 {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 768px) {
+  .tragwerker-site {
+    --site-header-offset: 6.25rem;
+    --site-grid-gap: 1.5rem;
+  }
+
+  .tragwerker-site .site-container {
+    padding-inline: 3.5rem;
+  }
+
+  .tragwerker-site .site-grid-span-2 {
+    grid-column: span 2;
+  }
+
+  .tragwerker-site .site-grid-span-3 {
+    grid-column: span 3;
+  }
+
+  .tragwerker-site .site-grid-span-4 {
+    grid-column: span 4;
+  }
+
+  .tragwerker-site .site-grid-span-5 {
+    grid-column: span 5;
+  }
+
+  .tragwerker-site .site-grid-span-6 {
+    grid-column: span 6;
+  }
+}
+
+.tragwerker-site .site-main {
+  padding-top: var(--site-header-offset);
+}
+
+@media (min-width: 1024px) {
+  .tragwerker-site {
+    --site-grid-gap: 2rem;
+  }
+
+  .tragwerker-site .site-container {
+    padding-inline: 5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .tragwerker-site .site-container {
+    padding-inline: 7rem;
+  }
+}

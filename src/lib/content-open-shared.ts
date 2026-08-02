@@ -48,7 +48,7 @@ export function parseContentOpenFromRoute(
     { prefix: "/team", entityType: "teamMember", param: "memberId" },
     { prefix: "/events", entityType: "event", param: "eventId" },
     { prefix: "/immobilien", entityType: "property", param: "propertyId" },
-    { prefix: "/jobs", entityType: "job", param: "jobId" },
+    { prefix: "/cms/jobs", entityType: "job", param: "jobId" },
   ];
 
   for (const route of routes) {

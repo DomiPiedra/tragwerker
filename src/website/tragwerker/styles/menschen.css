@@ -1,0 +1,10 @@
+.tragwerker-site .menschen-page {
+  --font-site-sans: var(--font-pp-neue-montreal), ui-sans-serif, sans-serif;
+  --font-site-serif: var(--font-pp-neue-montreal), ui-sans-serif, sans-serif;
+  font-family: var(--font-pp-neue-montreal), ui-sans-serif, sans-serif;
+}
+
+.tragwerker-site .menschen-page,
+.tragwerker-site .menschen-page * {
+  font-family: var(--font-pp-neue-montreal), ui-sans-serif, sans-serif !important;
+}

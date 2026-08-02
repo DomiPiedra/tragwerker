@@ -53,8 +53,8 @@ const overviewNav: NavItem[] = [
   {
     icon: LayoutGrid,
     label: "Dashboard",
-    href: "/",
-    match: (p) => p === "/",
+    href: "/cms",
+    match: (p) => p === "/cms",
   },
   {
     icon: ImageIcon,
@@ -104,8 +104,8 @@ const contentNav: NavItem[] = [
   {
     icon: ClipboardList,
     label: "Jobs",
-    href: "/jobs",
-    match: (p) => p.startsWith("/jobs"),
+    href: "/cms/jobs",
+    match: (p) => p.startsWith("/cms/jobs"),
   },
   {
     icon: Building2,
@@ -386,7 +386,7 @@ export function DashboardSidebar({
               onNavigate?.();
             }}
           />
-          <UtilityLink icon={Clock3} label="Recent" href="/" onNavigate={onNavigate} />
+          <UtilityLink icon={Clock3} label="Recent" href="/cms" onNavigate={onNavigate} />
         </div>
 
         <SidebarDivider />
