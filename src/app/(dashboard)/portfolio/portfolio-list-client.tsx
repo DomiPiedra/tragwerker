@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Filter,
   Globe,
+  ImageIcon,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -36,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -47,9 +49,17 @@ import {
 import {
   CONTENT_FULL_VIEW_RENAME_ID,
   ContentFullViewShell,
+  contentFullViewTitleClassName,
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
+import {
+  ContentFullViewPanelField,
+  ContentFullViewPanelSection,
+} from "@/components/content-full-view-panel";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import { Editor } from "@/components/editor/editor";
+import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import {
   contentPreviewPanelClassName,
   useContentRowClickHandlers,
@@ -78,7 +88,10 @@ type PortfolioRow = {
   slug: string;
   status: ProjectStatus;
   summary: string | null;
+  content: string | null;
   websiteUrl: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
   updatedAt: string;
   createdAt: string;
 };
@@ -88,7 +101,10 @@ type PortfolioDraft = {
   slug: string;
   status: ProjectStatus;
   summary: string;
+  content: string;
   websiteUrl: string;
+  heroImageUrl: string;
+  galleryUrls: string[];
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
@@ -102,6 +118,16 @@ function statusClass(status: ProjectStatus): string {
   if (status === ProjectStatus.Published) return "bg-emerald-100 text-emerald-800";
   if (status === ProjectStatus.InReview) return "bg-amber-100 text-amber-800";
   return "bg-zinc-100 text-zinc-700";
+}
+
+function slugifyTitle(input: string): string {
+  const s = input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return s.slice(0, 96) || "item";
 }
 
 export function PortfolioListClient({
@@ -124,6 +150,7 @@ export function PortfolioListClient({
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const { isResizing, startPanelResize, panelStyle } = usePreviewPanelResize();
+  const slugSyncedRef = useRef(true);
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -163,8 +190,12 @@ export function PortfolioListClient({
       slug: selected.slug,
       status: selected.status ?? ProjectStatus.Draft,
       summary: selected.summary ?? "",
+      content: selected.content ?? "",
       websiteUrl: selected.websiteUrl ?? "",
+      heroImageUrl: selected.heroImageUrl ?? "",
+      galleryUrls: selected.galleryUrls ?? [],
     });
+    slugSyncedRef.current = slugifyTitle(selected.title) === selected.slug;
   }, [selected]);
 
   useEffect(() => {
@@ -263,7 +294,11 @@ export function PortfolioListClient({
       draftSnapshot.slug.trim() === selectedSnapshot.slug &&
       draftSnapshot.status === selectedSnapshot.status &&
       draftSnapshot.summary.trim() === (selectedSnapshot.summary ?? "") &&
-      draftSnapshot.websiteUrl.trim() === (selectedSnapshot.websiteUrl ?? "");
+      draftSnapshot.content.trim() === (selectedSnapshot.content ?? "") &&
+      draftSnapshot.websiteUrl.trim() === (selectedSnapshot.websiteUrl ?? "") &&
+      draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
+      JSON.stringify(draftSnapshot.galleryUrls) ===
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -272,7 +307,10 @@ export function PortfolioListClient({
     formData.set("slug", draftSnapshot.slug);
     formData.set("status", draftSnapshot.status);
     formData.set("summary", draftSnapshot.summary);
+    formData.set("content", draftSnapshot.content);
     formData.set("websiteUrl", draftSnapshot.websiteUrl);
+    formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
+    formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
 
     const result = await updatePortfolioItem(formData);
     if (!result.ok) {
@@ -363,22 +401,137 @@ export function PortfolioListClient({
     });
   }
 
+  function updateDraftTitle(title: string) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        title,
+        slug: slugSyncedRef.current ? slugifyTitle(title) : prev.slug,
+      };
+    });
+  }
+
+  function updateDraftSlug(slug: string) {
+    slugSyncedRef.current = false;
+    setDraft((prev) => (prev ? { ...prev, slug } : prev));
+  }
+
+  function updateHeroImage(heroImageUrl: string) {
+    setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
+  }
+
+  function handleAIEdit(message: string) {
+    setError(message);
+    window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
+  }
+
   function renderPortfolioSiteSettings(): ReactNode {
     if (!selected || !draft) return null;
     return (
-      <ContentSiteSettingsFields
-        published={isProjectStatusPublished(draft.status)}
-        onPublishedChange={(published) =>
-          setDraft((prev) =>
-            prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
-          )
-        }
-      />
+      <div className="space-y-6">
+        <ContentFullViewPanelSection title="Publishing">
+          <ContentSiteSettingsFields
+            published={isProjectStatusPublished(draft.status)}
+            onPublishedChange={(published) =>
+              setDraft((prev) =>
+                prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
+              )
+            }
+          />
+        </ContentFullViewPanelSection>
+
+        <Separator className="bg-black/6" />
+
+        <ContentFullViewPanelSection title="Portfolio">
+          <ContentFullViewPanelField label="Updated">
+            <p className="text-muted-foreground text-[13px]">
+              {dateFmt.format(new Date(selected.updatedAt))}
+            </p>
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Slug">
+            <Input
+              value={draft.slug}
+              required
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDraftSlug(e.target.value)}
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Website">
+            <Input
+              value={draft.websiteUrl}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, websiteUrl: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Summary">
+            <textarea
+              value={draft.summary}
+              rows={3}
+              className="border-input bg-[#f7f7f7] min-h-[4.5rem] w-full rounded-lg border border-black/8 px-3 py-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, summary: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Hero image">
+            <MediaImagePicker
+              value={draft.heroImageUrl}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </ContentFullViewPanelField>
+        </ContentFullViewPanelSection>
+      </div>
     );
   }
 
-  function renderPortfolioEditorFields(): ReactNode {
+  function renderPortfolioEditorFields(mode: "preview" | "full" = "preview"): ReactNode {
     if (!selected) return null;
+
+    if (mode === "full") {
+      return (
+        <div className="space-y-6">
+          <MediaImagePicker
+            value={draft?.heroImageUrl ?? ""}
+            variant="banner"
+            placeholder="Add hero image"
+            onChange={updateHeroImage}
+          />
+
+          <textarea
+            id={CONTENT_FULL_VIEW_RENAME_ID}
+            value={draft?.title ?? ""}
+            required
+            rows={1}
+            placeholder="Portfolio title"
+            className={contentFullViewTitleClassName}
+            onChange={(e) => updateDraftTitle(e.target.value)}
+          />
+
+          <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+            <Editor
+              value={draft?.content ?? ""}
+              onChange={(nextContent) =>
+                setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+              }
+              handleAIEdit={handleAIEdit}
+              className="prose-premium-canvas"
+              placeholder="press / to add text, images, and more"
+            />
+          </div>
+
+          {error ? <p className="text-destructive text-xs">{error}</p> : null}
+          {isPending ? (
+            <p className="text-muted-foreground text-xs">Saving changes…</p>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
@@ -402,7 +555,7 @@ export function PortfolioListClient({
             value={draft?.title ?? ""}
             required
             className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) => setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))}
+            onChange={(e) => updateDraftTitle(e.target.value)}
           />
         </div>
 
@@ -415,7 +568,7 @@ export function PortfolioListClient({
             value={draft?.slug ?? ""}
             required
             className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) => setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))}
+            onChange={(e) => updateDraftSlug(e.target.value)}
           />
         </div>
 
@@ -436,7 +589,9 @@ export function PortfolioListClient({
           <Input
             value={draft?.websiteUrl ?? ""}
             className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
-            onChange={(e) => setDraft((prev) => (prev ? { ...prev, websiteUrl: e.target.value } : prev))}
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, websiteUrl: e.target.value } : prev))
+            }
           />
         </div>
 
@@ -449,8 +604,40 @@ export function PortfolioListClient({
             value={draft?.summary ?? ""}
             rows={5}
             className="border-input bg-background min-h-[7rem] w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            onChange={(e) => setDraft((prev) => (prev ? { ...prev, summary: e.target.value } : prev))}
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, summary: e.target.value } : prev))
+            }
           />
+        </div>
+
+        <div className="pt-4">
+          <h3 className="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wide uppercase">
+            Media
+          </h3>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Hero image
+            </label>
+            <MediaImagePicker
+              value={draft?.heroImageUrl ?? ""}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Gallery
+            </label>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
         </div>
 
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
@@ -473,11 +660,13 @@ export function PortfolioListClient({
           entityType: "portfolioItem",
           entityId: selected.id,
           title: draft?.title ?? selected.title,
-          content: draft?.summary ?? selected.summary ?? "",
+          content: [draft?.summary ?? "", draft?.content ?? "", draft?.websiteUrl ?? ""]
+            .filter(Boolean)
+            .join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">
-          {renderPortfolioEditorFields()}
+          {renderPortfolioEditorFields("full")}
         </div>
       </ContentFullViewShell>
     );

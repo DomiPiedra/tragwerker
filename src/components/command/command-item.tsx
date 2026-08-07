@@ -46,8 +46,8 @@ export function CommandItem({ command, active, onHover, onExecute }: Props) {
       </div>
 
       <div className="relative z-10 flex shrink-0 items-center gap-1.5 text-[11px]">
-        {command.shortcut?.map((key) => (
-          <kbd key={key} className="bg-background rounded border px-1.5 py-0.5 font-medium">
+        {command.shortcut?.map((key, index) => (
+          <kbd key={`${key}-${index}`} className="bg-background rounded border px-1.5 py-0.5 font-medium">
             {key}
           </kbd>
         ))}

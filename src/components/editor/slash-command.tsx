@@ -15,6 +15,7 @@ import { Extension, ReactRenderer } from "@tiptap/react";
 import { motion } from "framer-motion";
 import { isValidYoutubeUrl } from "@tiptap/extension-youtube";
 import {
+  Columns2,
   Code2,
   Heading1,
   Heading2,
@@ -354,6 +355,13 @@ export const SlashCommand = Extension.create<{
                   window.dispatchEvent(new CustomEvent(EDITOR_OPEN_MEDIA_PICKER_EVENT));
                 });
               },
+            },
+            {
+              title: "Columns",
+              description: "Two columns side by side",
+              icon: Columns2,
+              command: ({ editor, range }) =>
+                editor.chain().focus().deleteRange(range).insertEmptyColumns().run(),
             },
             {
               title: "Video",

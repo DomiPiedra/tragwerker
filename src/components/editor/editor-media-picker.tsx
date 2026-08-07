@@ -27,9 +27,16 @@ type EditorMediaPickerProps = {
   editor: Editor | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When set, choosing an image replaces the image at this doc position instead of inserting. */
+  replacePos?: number | null;
 };
 
-export function EditorMediaPicker({ editor, open, onOpenChange }: EditorMediaPickerProps) {
+export function EditorMediaPicker({
+  editor,
+  open,
+  onOpenChange,
+  replacePos = null,
+}: EditorMediaPickerProps) {
   const [items, setItems] = useState<MediaPickerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -61,10 +68,27 @@ export function EditorMediaPicker({ editor, open, onOpenChange }: EditorMediaPic
   const insertImage = useCallback(
     (src: string, alt?: string | null) => {
       if (!editor || !src.trim()) return;
-      editor.chain().focus().setImage({ src: src.trim(), alt: alt?.trim() || undefined }).run();
+      const trimmed = src.trim();
+      const altValue = alt?.trim() || undefined;
+
+      if (typeof replacePos === "number") {
+        const node = editor.state.doc.nodeAt(replacePos);
+        if (node?.type.name === "image") {
+          editor
+            .chain()
+            .focus()
+            .setNodeSelection(replacePos)
+            .updateAttributes("image", { src: trimmed, alt: altValue ?? null })
+            .run();
+          onOpenChange(false);
+          return;
+        }
+      }
+
+      editor.chain().focus().setImage({ src: trimmed, alt: altValue }).run();
       onOpenChange(false);
     },
-    [editor, onOpenChange]
+    [editor, onOpenChange, replacePos]
   );
 
   async function handleUpload(file: File | undefined) {
@@ -106,10 +130,12 @@ export function EditorMediaPicker({ editor, open, onOpenChange }: EditorMediaPic
         <SheetHeader className="border-border shrink-0 border-b px-4 py-4">
           <SheetTitle className="flex items-center gap-2">
             <ImageIcon className="size-4 opacity-70" />
-            Insert image
+            {typeof replacePos === "number" ? "Replace image" : "Insert image"}
           </SheetTitle>
           <SheetDescription>
-            Upload a file or choose from your media library. You can also paste a URL below.
+            {typeof replacePos === "number"
+              ? "Pick a new image from your library, upload one, or paste a URL."
+              : "Upload a file or choose from your media library. You can also paste a URL below."}
           </SheetDescription>
         </SheetHeader>
 
@@ -193,7 +219,7 @@ export function EditorMediaPicker({ editor, open, onOpenChange }: EditorMediaPic
                 }}
               />
               <Button type="button" size="sm" variant="secondary" disabled={!editor} onClick={submitUrl}>
-                Insert
+                {typeof replacePos === "number" ? "Replace" : "Insert"}
               </Button>
             </div>
           </div>

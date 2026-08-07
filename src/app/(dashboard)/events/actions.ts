@@ -17,6 +17,65 @@ function slugify(input: string): string {
   return s.slice(0, 96) || "event";
 }
 
+function parseOptionalUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
+function parseOptionalText(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  if (!value || value === "<p></p>") return null;
+  return value;
+}
+
+function parseGalleryUrls(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function serializeEvent(event: {
+  id: string;
+  title: string;
+  slug: string;
+  startsAt: Date;
+  endsAt: Date | null;
+  location: string | null;
+  description: string | null;
+  content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
+  published: boolean;
+  publishedAt: Date | null;
+  updatedAt: Date;
+  createdAt: Date;
+}) {
+  return {
+    id: event.id,
+    title: event.title,
+    slug: event.slug,
+    startsAt: event.startsAt.toISOString(),
+    endsAt: event.endsAt ? event.endsAt.toISOString() : null,
+    location: event.location,
+    description: event.description,
+    content: event.content,
+    heroImageUrl: event.heroImageUrl,
+    galleryUrls: event.galleryUrls,
+    published: event.published,
+    publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
+    updatedAt: event.updatedAt.toISOString(),
+    createdAt: event.createdAt.toISOString(),
+  };
+}
+
 export async function createEventQuick() {
   await requireEditorOrAdmin();
   const baseTitle = "Untitled Event";
@@ -41,6 +100,9 @@ export async function createEventQuick() {
       endsAt: null,
       location: null,
       description: null,
+      content: null,
+      heroImageUrl: null,
+      galleryUrls: [],
       published: false,
       publishedAt: null,
     },
@@ -56,25 +118,9 @@ export async function createEventQuick() {
 
   revalidatePath("/");
   revalidatePath("/events");
-
   scheduleContentSeoGeneration("event", event.id);
 
-  return {
-    ok: true as const,
-    event: {
-      id: event.id,
-      title: event.title,
-      slug: event.slug,
-      startsAt: event.startsAt.toISOString(),
-      endsAt: event.endsAt ? event.endsAt.toISOString() : null,
-      location: event.location,
-      description: event.description,
-      published: event.published,
-      publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
-      updatedAt: event.updatedAt.toISOString(),
-      createdAt: event.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, event: serializeEvent(event) };
 }
 
 export async function updateEvent(formData: FormData) {
@@ -86,6 +132,9 @@ export async function updateEvent(formData: FormData) {
   const endsAtRaw = formData.get("endsAt")?.toString() ?? "";
   const locationRaw = formData.get("location")?.toString().trim();
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
   const publishedRaw = formData.get("published")?.toString() ?? "false";
   const publishedAtRaw = formData.get("publishedAt")?.toString() ?? "";
 
@@ -141,6 +190,9 @@ export async function updateEvent(formData: FormData) {
       endsAt,
       location: locationRaw ? locationRaw : null,
       description: descriptionRaw ? descriptionRaw : null,
+      content: parseOptionalText(contentRaw),
+      heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+      galleryUrls: parseGalleryUrls(galleryUrlsRaw),
       published,
       publishedAt: published ? publishedAt ?? new Date() : null,
     },
@@ -156,25 +208,9 @@ export async function updateEvent(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/events");
-
   scheduleContentSeoGeneration("event", event.id);
 
-  return {
-    ok: true as const,
-    event: {
-      id: event.id,
-      title: event.title,
-      slug: event.slug,
-      startsAt: event.startsAt.toISOString(),
-      endsAt: event.endsAt ? event.endsAt.toISOString() : null,
-      location: event.location,
-      description: event.description,
-      published: event.published,
-      publishedAt: event.publishedAt ? event.publishedAt.toISOString() : null,
-      updatedAt: event.updatedAt.toISOString(),
-      createdAt: event.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, event: serializeEvent(event) };
 }
 
 export async function deleteEvent(id: string) {
@@ -200,4 +236,3 @@ export async function deleteEvent(id: string) {
   revalidatePath("/events");
   return { ok: true as const };
 }
-

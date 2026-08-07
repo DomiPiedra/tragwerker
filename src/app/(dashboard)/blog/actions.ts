@@ -17,6 +17,59 @@ function slugify(input: string): string {
   return s.slice(0, 96) || "post";
 }
 
+function parseOptionalUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
+function parseOptionalText(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  if (!value || value === "<p></p>") return null;
+  return value;
+}
+
+function parseGalleryUrls(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function serializePost(post: {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
+  published: boolean;
+  publishedAt: Date | null;
+  updatedAt: Date;
+  createdAt: Date;
+}) {
+  return {
+    id: post.id,
+    title: post.title,
+    slug: post.slug,
+    excerpt: post.excerpt,
+    content: post.content,
+    heroImageUrl: post.heroImageUrl,
+    galleryUrls: post.galleryUrls,
+    published: post.published,
+    publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
+    updatedAt: post.updatedAt.toISOString(),
+    createdAt: post.createdAt.toISOString(),
+  };
+}
+
 export async function createBlogPostQuick() {
   await requireEditorOrAdmin();
   const baseTitle = "Untitled Post";
@@ -38,6 +91,8 @@ export async function createBlogPostQuick() {
       slug: candidate,
       excerpt: null,
       content: null,
+      heroImageUrl: null,
+      galleryUrls: [],
       published: false,
       publishedAt: null,
     },
@@ -53,21 +108,9 @@ export async function createBlogPostQuick() {
 
   revalidatePath("/");
   revalidatePath("/blog");
+  scheduleContentSeoGeneration("blogPost", post.id);
 
-  return {
-    ok: true as const,
-    post: {
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      content: post.content,
-      published: post.published,
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-      updatedAt: post.updatedAt.toISOString(),
-      createdAt: post.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, post: serializePost(post) };
 }
 
 export async function updateBlogPost(formData: FormData) {
@@ -76,7 +119,9 @@ export async function updateBlogPost(formData: FormData) {
   const title = formData.get("title")?.toString().trim() ?? "";
   const slugRaw = formData.get("slug")?.toString().trim() ?? "";
   const excerptRaw = formData.get("excerpt")?.toString().trim();
-  const contentRaw = formData.get("content")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
   const publishedRaw = formData.get("published")?.toString() ?? "false";
   const publishedAtRaw = formData.get("publishedAt")?.toString() ?? "";
 
@@ -114,7 +159,9 @@ export async function updateBlogPost(formData: FormData) {
       title,
       slug,
       excerpt: excerptRaw ? excerptRaw : null,
-      content: contentRaw ? contentRaw : null,
+      content: parseOptionalText(contentRaw),
+      heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+      galleryUrls: parseGalleryUrls(galleryUrlsRaw),
       published,
       publishedAt: published ? publishedAt ?? new Date() : null,
     },
@@ -130,23 +177,9 @@ export async function updateBlogPost(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/blog");
-
   scheduleContentSeoGeneration("blogPost", post.id);
 
-  return {
-    ok: true as const,
-    post: {
-      id: post.id,
-      title: post.title,
-      slug: post.slug,
-      excerpt: post.excerpt,
-      content: post.content,
-      published: post.published,
-      publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-      updatedAt: post.updatedAt.toISOString(),
-      createdAt: post.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, post: serializePost(post) };
 }
 
 export async function deleteBlogPost(id: string) {
@@ -172,4 +205,3 @@ export async function deleteBlogPost(id: string) {
   revalidatePath("/blog");
   return { ok: true as const };
 }
-

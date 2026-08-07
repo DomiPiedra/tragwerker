@@ -15,6 +15,7 @@ import {
   CircleDot,
   ExternalLink,
   Filter,
+  ImageIcon,
   Link2,
   MapPin,
   MoreHorizontal,
@@ -35,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -46,9 +48,17 @@ import {
 import {
   CONTENT_FULL_VIEW_RENAME_ID,
   ContentFullViewShell,
+  contentFullViewTitleClassName,
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
+import {
+  ContentFullViewPanelField,
+  ContentFullViewPanelSection,
+} from "@/components/content-full-view-panel";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import { Editor } from "@/components/editor/editor";
+import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import {
   contentPreviewPanelClassName,
   useContentRowClickHandlers,
@@ -80,6 +90,9 @@ type EventRow = {
   endsAt: string | null;
   location: string | null;
   description: string | null;
+  content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
   published: boolean;
   publishedAt: string | null;
   updatedAt: string;
@@ -93,6 +106,9 @@ type EventDraft = {
   endsAt: string;
   location: string;
   description: string;
+  content: string;
+  heroImageUrl: string;
+  galleryUrls: string[];
   published: boolean;
   publishedAt: string;
 };
@@ -178,6 +194,9 @@ export function EventsListClient({
       endsAt: toLocalInputValue(selected.endsAt),
       location: selected.location ?? "",
       description: selected.description ?? "",
+      content: selected.content ?? "",
+      heroImageUrl: selected.heroImageUrl ?? "",
+      galleryUrls: selected.galleryUrls ?? [],
       published: selected.published,
       publishedAt: toLocalInputValue(selected.publishedAt),
     });
@@ -281,6 +300,10 @@ export function EventsListClient({
       draftSnapshot.endsAt.trim() === toLocalInputValue(selectedSnapshot.endsAt) &&
       draftSnapshot.location.trim() === (selectedSnapshot.location ?? "") &&
       draftSnapshot.description.trim() === (selectedSnapshot.description ?? "") &&
+      draftSnapshot.content.trim() === (selectedSnapshot.content ?? "") &&
+      draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
+      JSON.stringify(draftSnapshot.galleryUrls) ===
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []) &&
       draftSnapshot.published === selectedSnapshot.published &&
       draftSnapshot.publishedAt.trim() === toLocalInputValue(selectedSnapshot.publishedAt);
     if (unchanged) return true;
@@ -293,6 +316,9 @@ export function EventsListClient({
     formData.set("endsAt", draftSnapshot.endsAt);
     formData.set("location", draftSnapshot.location);
     formData.set("description", draftSnapshot.description);
+    formData.set("content", draftSnapshot.content);
+    formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
+    formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
     formData.set("published", draftSnapshot.published ? "true" : "false");
     formData.set("publishedAt", draftSnapshot.publishedAt);
 
@@ -385,26 +411,149 @@ export function EventsListClient({
     });
   }
 
+  function updateHeroImage(heroImageUrl: string) {
+    setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
+  }
+
+  function handleAIEdit(message: string) {
+    setError(message);
+    window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
+  }
+
   function renderEventSiteSettings(): ReactNode {
     if (!selected || !draft) return null;
     return (
-      <ContentSiteSettingsFields
-        published={draft.published}
-        publishedAt={draft.publishedAt}
-        splitPublishedAt={splitLocalDateTime}
-        mergePublishedAt={mergeLocalDateTime}
-        onPublishedChange={(published) =>
-          setDraft((prev) => (prev ? { ...prev, published } : prev))
-        }
-        onPublishedAtChange={(publishedAt) =>
-          setDraft((prev) => (prev ? { ...prev, publishedAt } : prev))
-        }
-      />
+      <div className="space-y-6">
+        <ContentFullViewPanelSection title="Publishing">
+          <ContentSiteSettingsFields
+            published={draft.published}
+            publishedAt={draft.publishedAt}
+            splitPublishedAt={splitLocalDateTime}
+            mergePublishedAt={mergeLocalDateTime}
+            onPublishedChange={(published) =>
+              setDraft((prev) => (prev ? { ...prev, published } : prev))
+            }
+            onPublishedAtChange={(publishedAt) =>
+              setDraft((prev) => (prev ? { ...prev, publishedAt } : prev))
+            }
+          />
+        </ContentFullViewPanelSection>
+
+        <Separator className="bg-black/6" />
+
+        <ContentFullViewPanelSection title="Event">
+          <ContentFullViewPanelField label="Updated">
+            <p className="text-muted-foreground text-[13px]">
+              {dateFmt.format(new Date(selected.updatedAt))}
+            </p>
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Slug">
+            <Input
+              value={draft.slug}
+              required
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Starts">
+            <Input
+              type="datetime-local"
+              value={draft.startsAt}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, startsAt: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Ends">
+            <Input
+              type="datetime-local"
+              value={draft.endsAt}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, endsAt: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Location">
+            <Input
+              value={draft.location}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, location: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Description">
+            <textarea
+              value={draft.description}
+              rows={3}
+              className="border-input bg-[#f7f7f7] min-h-[4.5rem] w-full rounded-lg border border-black/8 px-3 py-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Hero image">
+            <MediaImagePicker
+              value={draft.heroImageUrl}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </ContentFullViewPanelField>
+        </ContentFullViewPanelSection>
+      </div>
     );
   }
 
-  function renderEventEditorFields(): ReactNode {
+  function renderEventEditorFields(mode: "preview" | "full" = "preview"): ReactNode {
     if (!selected) return null;
+
+    if (mode === "full") {
+      return (
+        <div className="space-y-6">
+          <MediaImagePicker
+            value={draft?.heroImageUrl ?? ""}
+            variant="banner"
+            placeholder="Add hero image"
+            onChange={updateHeroImage}
+          />
+
+          <textarea
+            id={CONTENT_FULL_VIEW_RENAME_ID}
+            value={draft?.title ?? ""}
+            required
+            rows={1}
+            placeholder="Event title"
+            className={contentFullViewTitleClassName}
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))
+            }
+          />
+
+          <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+            <Editor
+              value={draft?.content ?? ""}
+              onChange={(nextContent) =>
+                setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+              }
+              handleAIEdit={handleAIEdit}
+              className="prose-premium-canvas"
+              placeholder="press / to add text, images, and more"
+            />
+          </div>
+
+          {error ? <p className="text-destructive text-xs">{error}</p> : null}
+          {isPending ? (
+            <p className="text-muted-foreground text-xs">Saving changes…</p>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
@@ -505,6 +654,36 @@ export function EventsListClient({
           />
         </div>
 
+        <div className="pt-4">
+          <h3 className="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wide uppercase">
+            Media
+          </h3>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Hero image
+            </label>
+            <MediaImagePicker
+              value={draft?.heroImageUrl ?? ""}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Gallery
+            </label>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
+        </div>
+
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
         {isPending ? (
           <p className="text-muted-foreground px-2 pt-2 text-xs">Saving changes…</p>
@@ -525,11 +704,13 @@ export function EventsListClient({
           entityType: "event",
           entityId: selected.id,
           title: draft?.title ?? selected.title,
-          content: [draft?.location ?? "", draft?.description ?? ""].filter(Boolean).join("\n\n"),
+          content: [draft?.description ?? "", draft?.content ?? "", draft?.location ?? ""]
+            .filter(Boolean)
+            .join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">
-          {renderEventEditorFields()}
+          {renderEventEditorFields("full")}
         </div>
       </ContentFullViewShell>
     );

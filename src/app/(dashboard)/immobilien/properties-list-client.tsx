@@ -16,11 +16,11 @@ import {
   ExternalLink,
   Filter,
   Home,
+  ImageIcon,
   Link2,
   MapPin,
   MoreHorizontal,
   Pencil,
-  Plus,
   Search,
   Trash2,
   X,
@@ -37,6 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -48,9 +49,17 @@ import {
 import {
   CONTENT_FULL_VIEW_RENAME_ID,
   ContentFullViewShell,
+  contentFullViewTitleClassName,
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
+import {
+  ContentFullViewPanelField,
+  ContentFullViewPanelSection,
+} from "@/components/content-full-view-panel";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import { Editor } from "@/components/editor/editor";
+import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
+import { MediaImagePicker } from "@/components/media/media-image-picker";
 import {
   contentPreviewPanelClassName,
   useContentRowClickHandlers,
@@ -81,6 +90,10 @@ type PropertyRow = {
   address: string | null;
   priceEur: number | null;
   bedrooms: number | null;
+  description: string | null;
+  content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
   updatedAt: string;
   createdAt: string;
 };
@@ -92,6 +105,10 @@ type PropertyDraft = {
   address: string;
   priceEur: string;
   bedrooms: string;
+  description: string;
+  content: string;
+  heroImageUrl: string;
+  galleryUrls: string[];
 };
 
 const numberFmt = new Intl.NumberFormat("de-DE");
@@ -165,6 +182,10 @@ export function PropertiesListClient({
       address: selected.address ?? "",
       priceEur: selected.priceEur == null ? "" : String(selected.priceEur),
       bedrooms: selected.bedrooms == null ? "" : String(selected.bedrooms),
+      description: selected.description ?? "",
+      content: selected.content ?? "",
+      heroImageUrl: selected.heroImageUrl ?? "",
+      galleryUrls: selected.galleryUrls ?? [],
     });
   }, [selected]);
 
@@ -267,7 +288,12 @@ export function PropertiesListClient({
       draftSnapshot.priceEur.trim() ===
         (selectedSnapshot.priceEur == null ? "" : String(selectedSnapshot.priceEur)) &&
       draftSnapshot.bedrooms.trim() ===
-        (selectedSnapshot.bedrooms == null ? "" : String(selectedSnapshot.bedrooms));
+        (selectedSnapshot.bedrooms == null ? "" : String(selectedSnapshot.bedrooms)) &&
+      draftSnapshot.description.trim() === (selectedSnapshot.description ?? "") &&
+      draftSnapshot.content.trim() === (selectedSnapshot.content ?? "") &&
+      draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
+      JSON.stringify(draftSnapshot.galleryUrls) ===
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -278,6 +304,10 @@ export function PropertiesListClient({
     formData.set("address", draftSnapshot.address);
     formData.set("priceEur", draftSnapshot.priceEur);
     formData.set("bedrooms", draftSnapshot.bedrooms);
+    formData.set("description", draftSnapshot.description);
+    formData.set("content", draftSnapshot.content);
+    formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
+    formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
 
     const result = await updateProperty(formData);
     if (!result.ok) {
@@ -371,24 +401,147 @@ export function PropertiesListClient({
     });
   }
 
+  function updateHeroImage(heroImageUrl: string) {
+    setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
+  }
+
+  function handleAIEdit(message: string) {
+    setError(message);
+    window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
+  }
+
   function renderPropertySiteSettings(): ReactNode {
     if (!selected || !draft) return null;
     return (
-      <ContentSiteSettingsFields
-        published={isPropertyStatusPublished(draft.status)}
-        onPublishedChange={(published) =>
-          setDraft((prev) =>
-            prev
-              ? { ...prev, status: propertyStatusFromPublished(published, prev.status) }
-              : prev
-          )
-        }
-      />
+      <div className="space-y-6">
+        <ContentFullViewPanelSection title="Publishing">
+          <ContentSiteSettingsFields
+            published={isPropertyStatusPublished(draft.status)}
+            onPublishedChange={(published) =>
+              setDraft((prev) =>
+                prev
+                  ? { ...prev, status: propertyStatusFromPublished(published, prev.status) }
+                  : prev
+              )
+            }
+          />
+        </ContentFullViewPanelSection>
+
+        <Separator className="bg-black/6" />
+
+        <ContentFullViewPanelSection title="Property">
+          <ContentFullViewPanelField label="Updated">
+            <p className="text-muted-foreground text-[13px]">
+              {dateFmt.format(new Date(selected.updatedAt))}
+            </p>
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Slug">
+            <Input
+              value={draft.slug}
+              required
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, slug: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Address">
+            <Input
+              value={draft.address}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, address: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Price (EUR)">
+            <Input
+              value={draft.priceEur}
+              type="number"
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, priceEur: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Bedrooms">
+            <Input
+              value={draft.bedrooms}
+              type="number"
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, bedrooms: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Description">
+            <textarea
+              value={draft.description}
+              rows={3}
+              className="border-input bg-[#f7f7f7] min-h-[4.5rem] w-full rounded-lg border border-black/8 px-3 py-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Hero image">
+            <MediaImagePicker
+              value={draft.heroImageUrl}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </ContentFullViewPanelField>
+        </ContentFullViewPanelSection>
+      </div>
     );
   }
 
-  function renderPropertyEditorFields(): ReactNode {
+  function renderPropertyEditorFields(mode: "preview" | "full" = "preview"): ReactNode {
     if (!selected) return null;
+
+    if (mode === "full") {
+      return (
+        <div className="space-y-6">
+          <MediaImagePicker
+            value={draft?.heroImageUrl ?? ""}
+            variant="banner"
+            placeholder="Add hero image"
+            onChange={updateHeroImage}
+          />
+
+          <textarea
+            id={CONTENT_FULL_VIEW_RENAME_ID}
+            value={draft?.title ?? ""}
+            required
+            rows={1}
+            placeholder="Property title"
+            className={contentFullViewTitleClassName}
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))
+            }
+          />
+
+          <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+            <Editor
+              value={draft?.content ?? ""}
+              onChange={(nextContent) =>
+                setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+              }
+              handleAIEdit={handleAIEdit}
+              className="prose-premium-canvas"
+              placeholder="press / to add text, images, and more"
+            />
+          </div>
+
+          {error ? <p className="text-destructive text-xs">{error}</p> : null}
+          {isPending ? (
+            <p className="text-muted-foreground text-xs">Saving changes…</p>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
@@ -478,6 +631,51 @@ export function PropertiesListClient({
           />
         </div>
 
+        <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+          <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+            <CircleDot className="size-3.5" />
+            Description
+          </label>
+          <textarea
+            value={draft?.description ?? ""}
+            rows={5}
+            className="border-input bg-background min-h-[7rem] w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))
+            }
+          />
+        </div>
+
+        <div className="pt-4">
+          <h3 className="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wide uppercase">
+            Media
+          </h3>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Hero image
+            </label>
+            <MediaImagePicker
+              value={draft?.heroImageUrl ?? ""}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Gallery
+            </label>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
+        </div>
+
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
         {isPending ? (
           <p className="text-muted-foreground px-2 pt-2 text-xs">Saving changes…</p>
@@ -498,11 +696,18 @@ export function PropertiesListClient({
           entityType: "property",
           entityId: selected.id,
           title: draft?.title ?? selected.title,
-          content: [draft?.address ?? "", draft?.status ?? ""].filter(Boolean).join("\n\n"),
+          content: [
+            draft?.address ?? "",
+            draft?.status ?? "",
+            draft?.description ?? "",
+            draft?.content ?? "",
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">
-          {renderPropertyEditorFields()}
+          {renderPropertyEditorFields("full")}
         </div>
       </ContentFullViewShell>
     );

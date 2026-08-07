@@ -21,7 +21,10 @@ export default async function PortfolioPage({
     slug: item.slug,
     status: item.status ?? ProjectStatus.Draft,
     summary: item.summary,
+    content: item.content,
     websiteUrl: item.websiteUrl,
+    heroImageUrl: item.heroImageUrl,
+    galleryUrls: item.galleryUrls ?? [],
     updatedAt: item.updatedAt.toISOString(),
     createdAt: item.createdAt.toISOString(),
   }));

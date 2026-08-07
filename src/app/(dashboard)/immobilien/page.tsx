@@ -21,6 +21,10 @@ export default async function ImmobilienPage({
     address: property.address,
     priceEur: property.priceEur,
     bedrooms: property.bedrooms,
+    description: property.description,
+    content: property.content,
+    heroImageUrl: property.heroImageUrl,
+    galleryUrls: property.galleryUrls ?? [],
     updatedAt: property.updatedAt.toISOString(),
     createdAt: property.createdAt.toISOString(),
   }));

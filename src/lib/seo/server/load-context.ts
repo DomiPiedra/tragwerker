@@ -23,19 +23,24 @@ export async function loadSeoContentContext(
     case "project": {
       const row = await prisma.project.findUnique({
         where: { id: entityId },
-        select: { name: true, description: true, category: true },
+        select: { name: true, description: true, content: true, category: true },
       });
       if (!row) return null;
-      const body = [row.category, row.description ?? ""].filter(Boolean).join("\n\n");
+      const body = [row.category, row.description ?? "", row.content ?? ""]
+        .filter(Boolean)
+        .join("\n\n");
       return buildContext(label, row.name, body);
     }
     case "portfolioItem": {
       const row = await prisma.portfolioItem.findUnique({
         where: { id: entityId },
-        select: { title: true, summary: true },
+        select: { title: true, summary: true, content: true, websiteUrl: true },
       });
       if (!row) return null;
-      return buildContext(label, row.title, row.summary ?? "");
+      const body = [row.summary ?? "", row.content ?? "", row.websiteUrl ?? ""]
+        .filter(Boolean)
+        .join("\n\n");
+      return buildContext(label, row.title, body);
     }
     case "teamMember": {
       const row = await prisma.teamMember.findUnique({
@@ -49,19 +54,29 @@ export async function loadSeoContentContext(
     case "event": {
       const row = await prisma.event.findUnique({
         where: { id: entityId },
-        select: { title: true, location: true, description: true },
+        select: { title: true, location: true, description: true, content: true },
       });
       if (!row) return null;
-      const body = [row.location ?? "", row.description ?? ""].filter(Boolean).join("\n\n");
+      const body = [row.location ?? "", row.description ?? "", row.content ?? ""]
+        .filter(Boolean)
+        .join("\n\n");
       return buildContext(label, row.title, body);
     }
     case "property": {
       const row = await prisma.property.findUnique({
         where: { id: entityId },
-        select: { title: true, address: true, status: true },
+        select: {
+          title: true,
+          address: true,
+          status: true,
+          description: true,
+          content: true,
+        },
       });
       if (!row) return null;
-      const body = [row.address ?? "", row.status].filter(Boolean).join("\n\n");
+      const body = [row.address ?? "", row.status, row.description ?? "", row.content ?? ""]
+        .filter(Boolean)
+        .join("\n\n");
       return buildContext(label, row.title, body);
     }
     case "page": {

@@ -64,6 +64,7 @@ import {
 import { useTrackContentOpen } from "@/hooks/use-track-content-open";
 import { cn } from "@/lib/utils";
 import { Editor } from "@/components/editor/editor";
+import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
 import { MediaImagePicker } from "@/components/media/media-image-picker";
 
 import { fetchContentSeoRecord, saveContentSeoAction } from "@/app/actions/content-seo";
@@ -86,6 +87,8 @@ type BlogRow = {
   slug: string;
   excerpt: string | null;
   content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
   published: boolean;
   publishedAt: string | null;
   updatedAt: string;
@@ -97,6 +100,8 @@ type BlogDraft = {
   slug: string;
   excerpt: string;
   content: string;
+  heroImageUrl: string;
+  galleryUrls: string[];
   published: boolean;
   publishedAt: string;
 };
@@ -193,6 +198,8 @@ export function BlogListClient({
       slug: selected.slug,
       excerpt: selected.excerpt ?? "",
       content: selected.content ?? "",
+      heroImageUrl: selected.heroImageUrl ?? "",
+      galleryUrls: selected.galleryUrls ?? [],
       published: selected.published,
       publishedAt: toLocalInputValue(selected.publishedAt),
     });
@@ -308,6 +315,8 @@ export function BlogListClient({
           slug: postRow.slug,
           excerpt: postRow.excerpt ?? "",
           content: result.contentHtml,
+          heroImageUrl: postRow.heroImageUrl ?? "",
+          galleryUrls: postRow.galleryUrls ?? [],
           published: postRow.published,
           publishedAt: toLocalInputValue(postRow.publishedAt),
         };
@@ -410,6 +419,9 @@ export function BlogListClient({
       draftSnapshot.slug.trim() === selectedSnapshot.slug &&
       draftSnapshot.excerpt.trim() === (selectedSnapshot.excerpt ?? "") &&
       draftSnapshot.content.trim() === (selectedSnapshot.content ?? "") &&
+      draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
+      JSON.stringify(draftSnapshot.galleryUrls) ===
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []) &&
       draftSnapshot.published === selectedSnapshot.published &&
       draftSnapshot.publishedAt.trim() === toLocalInputValue(selectedSnapshot.publishedAt);
     if (unchanged) return true;
@@ -420,6 +432,8 @@ export function BlogListClient({
     formData.set("slug", draftSnapshot.slug);
     formData.set("excerpt", draftSnapshot.excerpt);
     formData.set("content", draftSnapshot.content);
+    formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
+    formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
     formData.set("published", draftSnapshot.published ? "true" : "false");
     formData.set("publishedAt", draftSnapshot.publishedAt);
 
@@ -568,6 +582,22 @@ export function BlogListClient({
               <p className="text-muted-foreground text-xs">Saving cover image…</p>
             ) : null}
           </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Hero image">
+            <MediaImagePicker
+              value={draft.heroImageUrl}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Gallery">
+            <MediaGalleryPicker
+              value={draft.galleryUrls}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
           <ContentFullViewPanelField label="Excerpt">
             <textarea
               value={draft.excerpt}
@@ -579,6 +609,10 @@ export function BlogListClient({
         </ContentFullViewPanelSection>
       </div>
     );
+  }
+
+  function updateHeroImage(heroImageUrl: string) {
+    setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
   }
 
   function renderBlogPageFields(): ReactNode {
@@ -651,11 +685,94 @@ export function BlogListClient({
     );
   }
 
-  function renderBlogEditorFields(): ReactNode {
+  function renderBlogEditorFields(mode: "preview" | "full" = "preview"): ReactNode {
     if (!selected) return null;
+
+    if (mode === "full") {
+      return (
+        <div className="space-y-6">
+          <MediaImagePicker
+            value={draft?.heroImageUrl ?? ""}
+            variant="banner"
+            placeholder="Add hero image"
+            onChange={updateHeroImage}
+          />
+
+          <textarea
+            id={CONTENT_FULL_VIEW_RENAME_ID}
+            value={draft?.title ?? ""}
+            required
+            rows={1}
+            placeholder="Title"
+            className={contentFullViewTitleClassName}
+            onChange={(e) =>
+              setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))
+            }
+          />
+
+          <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+            {isGeneratingContent ? (
+              <div
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/75 backdrop-blur-[2px]"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <Loader2 className="text-muted-foreground size-10 animate-spin" />
+                <p className="text-muted-foreground text-sm">Generating content…</p>
+              </div>
+            ) : null}
+            <Editor
+              value={draft?.content ?? ""}
+              onChange={(nextContent) =>
+                setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+              }
+              handleAIEdit={handleAIEdit}
+              className="prose-premium-canvas"
+              placeholder="press / to add text, images, and more"
+            />
+          </div>
+
+          {error ? <p className="text-destructive text-xs">{error}</p> : null}
+          {isPending ? (
+            <p className="text-muted-foreground text-xs">Saving changes…</p>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         {renderBlogPageFields()}
+
+        <div className="pt-4">
+          <h3 className="text-muted-foreground mb-2 px-2 text-xs font-medium tracking-wide uppercase">
+            Media
+          </h3>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Hero image
+            </label>
+            <MediaImagePicker
+              value={draft?.heroImageUrl ?? ""}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <ImageIcon className="size-3.5" />
+              Gallery
+            </label>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
+        </div>
 
         <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
           <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
@@ -720,41 +837,7 @@ export function BlogListClient({
           }}
         >
           <div className="mx-auto w-full max-w-4xl">
-            <textarea
-              id={CONTENT_FULL_VIEW_RENAME_ID}
-              value={draft?.title ?? ""}
-              required
-              rows={1}
-              placeholder="Title"
-              className={contentFullViewTitleClassName}
-              onChange={(e) =>
-                setDraft((prev) => (prev ? { ...prev, title: e.target.value } : prev))
-              }
-            />
-            <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
-              {isGeneratingContent ? (
-                <div
-                  className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl bg-white/75 backdrop-blur-[2px]"
-                  aria-live="polite"
-                  aria-busy="true"
-                >
-                  <Loader2 className="text-muted-foreground size-10 animate-spin" />
-                  <p className="text-muted-foreground text-sm">Generating content…</p>
-                </div>
-              ) : null}
-              <Editor
-                value={draft?.content ?? ""}
-                onChange={(nextContent) =>
-                  setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
-                }
-                handleAIEdit={handleAIEdit}
-                className="prose-premium-canvas"
-              />
-            </div>
-            {error ? <p className="text-destructive mt-4 text-xs">{error}</p> : null}
-            {isPending ? (
-              <p className="text-muted-foreground mt-2 text-xs">Saving changes…</p>
-            ) : null}
+            {renderBlogEditorFields("full")}
           </div>
         </ContentFullViewShell>
         {savedHint}
