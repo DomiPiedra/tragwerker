@@ -21,6 +21,8 @@ export default async function BlogPage({
     slug: post.slug,
     excerpt: post.excerpt,
     content: post.content,
+    heroImageUrl: post.heroImageUrl,
+    galleryUrls: post.galleryUrls ?? [],
     published: post.published,
     publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
     updatedAt: post.updatedAt.toISOString(),

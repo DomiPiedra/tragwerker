@@ -61,9 +61,16 @@ import {
 import {
   CONTENT_FULL_VIEW_RENAME_ID,
   ContentFullViewShell,
+  contentFullViewTitleClassName,
   focusContentFullViewRename,
 } from "@/components/content-full-view-shell";
+import {
+  ContentFullViewPanelField,
+  ContentFullViewPanelSection,
+} from "@/components/content-full-view-panel";
+import { Separator } from "@/components/ui/separator";
 import { ContentPreviewResizeHandle } from "@/components/content-preview-resize-handle";
+import { Editor } from "@/components/editor/editor";
 import { MediaGalleryPicker } from "@/components/media/media-gallery-picker";
 import { MediaImagePicker } from "@/components/media/media-image-picker";
 import {
@@ -82,6 +89,7 @@ type ProjectRow = {
   category: string;
   status: ProjectStatus;
   description: string | null;
+  content: string | null;
   heroImageUrl: string | null;
   galleryUrls: string[];
   updatedAt: string;
@@ -95,6 +103,7 @@ type ProjectDraft = {
   category: string;
   status: ProjectStatus;
   description: string;
+  content: string;
   heroImageUrl: string;
   galleryUrls: string[];
 };
@@ -214,6 +223,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       category: selected.category || "Residential",
       status: selected.status ?? ProjectStatus.Draft,
       description: selected.description ?? "",
+      content: selected.content ?? "",
       heroImageUrl: selected.heroImageUrl ?? "",
       galleryUrls: selected.galleryUrls ?? [],
     });
@@ -316,6 +326,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       draftSnapshot.category.trim() === (selectedSnapshot.category ?? "Residential") &&
       draftSnapshot.status === (selectedSnapshot.status ?? ProjectStatus.Draft) &&
       draftSnapshot.description.trim() === currentDescription &&
+      draftSnapshot.content.trim() === (selectedSnapshot.content ?? "") &&
       draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
       JSON.stringify(draftSnapshot.galleryUrls) ===
         JSON.stringify(selectedSnapshot.galleryUrls ?? []);
@@ -329,6 +340,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
     formData.set("category", draftSnapshot.category);
     formData.set("status", draftSnapshot.status);
     formData.set("description", draftSnapshot.description);
+    formData.set("content", draftSnapshot.content);
     formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
     formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
 
@@ -369,6 +381,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
       formData.set("category", next.category);
       formData.set("status", next.status);
       formData.set("description", next.description ?? "");
+      formData.set("content", next.content ?? "");
       formData.set("heroImageUrl", next.heroImageUrl ?? "");
       formData.set("galleryUrls", JSON.stringify(next.galleryUrls ?? []));
 
@@ -485,22 +498,130 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
     setDraft((prev) => (prev ? { ...prev, slug } : prev));
   }
 
+  function updateHeroImage(heroImageUrl: string) {
+    setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
+  }
+
+  function handleAIEdit(message: string) {
+    setError(message);
+    window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
+  }
+
   function renderProjectSiteSettings(): ReactNode {
     if (!selected || !draft) return null;
     return (
-      <ContentSiteSettingsFields
-        published={isProjectStatusPublished(draft.status)}
-        onPublishedChange={(published) =>
-          setDraft((prev) =>
-            prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
-          )
-        }
-      />
+      <div className="space-y-6">
+        <ContentFullViewPanelSection title="Publishing">
+          <ContentSiteSettingsFields
+            published={isProjectStatusPublished(draft.status)}
+            onPublishedChange={(published) =>
+              setDraft((prev) =>
+                prev ? { ...prev, status: projectStatusFromPublished(published) } : prev
+              )
+            }
+          />
+        </ContentFullViewPanelSection>
+
+        <Separator className="bg-black/6" />
+
+        <ContentFullViewPanelSection title="Project">
+          <ContentFullViewPanelField label="Updated">
+            <p className="text-muted-foreground text-[13px]">
+              {dateFmt.format(new Date(selected.updatedAt))}
+            </p>
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Slug">
+            <Input
+              value={draft.slug}
+              required
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDraftSlug(e.target.value)}
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Author">
+            <Input
+              value={draft.author}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, author: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Category">
+            <Input
+              value={draft.category}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, category: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Short description">
+            <textarea
+              value={draft.description}
+              rows={3}
+              className="border-input bg-[#f7f7f7] min-h-[4.5rem] w-full rounded-lg border border-black/8 px-3 py-2 text-[13px] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={(e) =>
+                setDraft((prev) => (prev ? { ...prev, description: e.target.value } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Hero image">
+            <MediaImagePicker
+              value={draft.heroImageUrl}
+              variant="cover"
+              placeholder="Choose hero image"
+              onChange={updateHeroImage}
+            />
+          </ContentFullViewPanelField>
+        </ContentFullViewPanelSection>
+      </div>
     );
   }
 
-  function renderProjectEditorFields(): ReactNode {
+  function renderProjectEditorFields(mode: "preview" | "full" = "preview"): ReactNode {
     if (!selected) return null;
+
+    if (mode === "full") {
+      return (
+        <div className="space-y-6">
+          <MediaImagePicker
+            value={draft?.heroImageUrl ?? ""}
+            variant="banner"
+            placeholder="Add hero image"
+            onChange={updateHeroImage}
+          />
+
+          <textarea
+            id={CONTENT_FULL_VIEW_RENAME_ID}
+            value={draft?.name ?? ""}
+            required
+            rows={1}
+            placeholder="Project title"
+            className={contentFullViewTitleClassName}
+            onChange={(e) => updateDraftName(e.target.value)}
+          />
+
+          <div className="relative min-h-[50vh] [&_.prose-premium]:leading-6 [&_.prose-premium_p]:my-0">
+            <Editor
+              value={draft?.content ?? ""}
+              onChange={(nextContent) =>
+                setDraft((prev) => (prev ? { ...prev, content: nextContent } : prev))
+              }
+              handleAIEdit={handleAIEdit}
+              className="prose-premium-canvas"
+              placeholder="press / to add text, images, and more"
+            />
+          </div>
+
+          {error ? <p className="text-destructive text-xs">{error}</p> : null}
+          {isPending ? (
+            <p className="text-muted-foreground text-xs">Saving changes…</p>
+          ) : null}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
@@ -616,9 +737,7 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
               value={draft?.heroImageUrl ?? ""}
               variant="cover"
               placeholder="Choose hero image"
-              onChange={(heroImageUrl) =>
-                setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev))
-              }
+              onChange={updateHeroImage}
             />
           </div>
           <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
@@ -655,11 +774,13 @@ export function ProjectsListClient({ initialProjects }: { initialProjects: Proje
           entityType: "project",
           entityId: selected.id,
           title: draft?.name ?? selected.name,
-          content: [draft?.category ?? "", draft?.description ?? ""].filter(Boolean).join("\n\n"),
+          content: [draft?.category ?? "", draft?.description ?? "", draft?.content ?? ""]
+            .filter(Boolean)
+            .join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">
-          {renderProjectEditorFields()}
+          {renderProjectEditorFields("full")}
         </div>
       </ContentFullViewShell>
     );

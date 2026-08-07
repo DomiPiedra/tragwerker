@@ -43,6 +43,12 @@ function parseOptionalUrl(raw: string | null | undefined): string | null {
   return value ? value : null;
 }
 
+function parseOptionalText(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  if (!value || value === "<p></p>") return null;
+  return value;
+}
+
 function parseGalleryUrls(raw: string | null | undefined): string[] {
   if (!raw?.trim()) return [];
   try {
@@ -70,6 +76,7 @@ function serializeProject(project: {
   category: string;
   status: ProjectStatus;
   description: string | null;
+  content: string | null;
   heroImageUrl: string | null;
   galleryUrls: string[];
   updatedAt: Date;
@@ -83,6 +90,7 @@ function serializeProject(project: {
     category: project.category,
     status: project.status,
     description: project.description,
+    content: project.content,
     heroImageUrl: project.heroImageUrl,
     galleryUrls: project.galleryUrls,
     updatedAt: project.updatedAt.toISOString(),
@@ -98,6 +106,7 @@ export async function createProject(formData: FormData) {
   const categoryRaw = formData.get("category")?.toString().trim() ?? "";
   const statusRaw = formData.get("status")?.toString() ?? "";
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
   const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
   const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
@@ -125,6 +134,7 @@ export async function createProject(formData: FormData) {
       category: categoryRaw || "Residential",
       status: parseProjectStatus(statusRaw),
       description: descriptionRaw ? descriptionRaw : null,
+      content: parseOptionalText(contentRaw),
       heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
       galleryUrls: parseGalleryUrls(galleryUrlsRaw),
     },
@@ -162,6 +172,7 @@ export async function updateProject(formData: FormData) {
   const categoryRaw = formData.get("category")?.toString().trim() ?? "";
   const statusRaw = formData.get("status")?.toString() ?? "";
   const descriptionRaw = formData.get("description")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
   const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
   const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
@@ -175,6 +186,7 @@ export async function updateProject(formData: FormData) {
     name: string;
     author: string;
     description: string | null;
+    content?: string | null;
     heroImageUrl?: string | null;
     galleryUrls?: string[];
     category?: string;
@@ -190,6 +202,7 @@ export async function updateProject(formData: FormData) {
           name: true,
           author: true,
           description: true,
+          content: true,
           heroImageUrl: true,
           galleryUrls: true,
           ...(supportsCategory ? { category: true } : {}),
@@ -227,6 +240,7 @@ export async function updateProject(formData: FormData) {
       slug: string;
       author: string;
       description: string | null;
+      content: string | null;
       heroImageUrl: string | null;
       galleryUrls: string[];
       category?: string;
@@ -236,6 +250,7 @@ export async function updateProject(formData: FormData) {
       slug,
       author: authorRaw || current.author,
       description: descriptionRaw ? descriptionRaw : null,
+      content: parseOptionalText(contentRaw),
       heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
       galleryUrls: parseGalleryUrls(galleryUrlsRaw),
     };
@@ -280,6 +295,9 @@ export async function updateProject(formData: FormData) {
   }
   if ((current.description ?? "") !== (project.description ?? "")) {
     changedFields.push("description");
+  }
+  if ((current.content ?? "") !== (project.content ?? "")) {
+    changedFields.push("content");
   }
   if ((current.heroImageUrl ?? "") !== (project.heroImageUrl ?? "")) {
     changedFields.push("heroImageUrl");

@@ -26,6 +26,63 @@ function parsePropertyStatus(raw: string | undefined | null): PropertyStatus {
   return "draft";
 }
 
+function parseOptionalUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
+function parseOptionalText(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  if (!value || value === "<p></p>") return null;
+  return value;
+}
+
+function parseGalleryUrls(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function serializeProperty(property: {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  address: string | null;
+  priceEur: number | null;
+  bedrooms: number | null;
+  description: string | null;
+  content: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
+  updatedAt: Date;
+  createdAt: Date;
+}) {
+  return {
+    id: property.id,
+    title: property.title,
+    slug: property.slug,
+    status: property.status,
+    address: property.address,
+    priceEur: property.priceEur,
+    bedrooms: property.bedrooms,
+    description: property.description,
+    content: property.content,
+    heroImageUrl: property.heroImageUrl,
+    galleryUrls: property.galleryUrls,
+    updatedAt: property.updatedAt.toISOString(),
+    createdAt: property.createdAt.toISOString(),
+  };
+}
+
 export async function createPropertyQuick() {
   await requireEditorOrAdmin();
   const baseTitle = "Untitled Property";
@@ -49,6 +106,10 @@ export async function createPropertyQuick() {
       address: null,
       priceEur: null,
       bedrooms: null,
+      description: null,
+      content: null,
+      heroImageUrl: null,
+      galleryUrls: [],
     },
   });
 
@@ -62,23 +123,9 @@ export async function createPropertyQuick() {
 
   revalidatePath("/");
   revalidatePath("/immobilien");
-
   scheduleContentSeoGeneration("property", property.id);
 
-  return {
-    ok: true as const,
-    property: {
-      id: property.id,
-      title: property.title,
-      slug: property.slug,
-      status: property.status,
-      address: property.address,
-      priceEur: property.priceEur,
-      bedrooms: property.bedrooms,
-      updatedAt: property.updatedAt.toISOString(),
-      createdAt: property.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, property: serializeProperty(property) };
 }
 
 export async function updateProperty(formData: FormData) {
@@ -90,6 +137,10 @@ export async function updateProperty(formData: FormData) {
   const addressRaw = formData.get("address")?.toString().trim();
   const priceRaw = formData.get("priceEur")?.toString().trim() ?? "";
   const bedroomsRaw = formData.get("bedrooms")?.toString().trim() ?? "";
+  const descriptionRaw = formData.get("description")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
   if (!id) return { ok: false as const, error: "Missing property id." };
   if (!title) return { ok: false as const, error: "Title is required." };
@@ -125,6 +176,10 @@ export async function updateProperty(formData: FormData) {
       address: addressRaw ? addressRaw : null,
       priceEur,
       bedrooms,
+      description: descriptionRaw ? descriptionRaw : null,
+      content: parseOptionalText(contentRaw),
+      heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+      galleryUrls: parseGalleryUrls(galleryUrlsRaw),
     },
   });
 
@@ -138,23 +193,9 @@ export async function updateProperty(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/immobilien");
-
   scheduleContentSeoGeneration("property", property.id);
 
-  return {
-    ok: true as const,
-    property: {
-      id: property.id,
-      title: property.title,
-      slug: property.slug,
-      status: property.status,
-      address: property.address,
-      priceEur: property.priceEur,
-      bedrooms: property.bedrooms,
-      updatedAt: property.updatedAt.toISOString(),
-      createdAt: property.createdAt.toISOString(),
-    },
-  };
+  return { ok: true as const, property: serializeProperty(property) };
 }
 
 export async function deleteProperty(id: string) {
@@ -180,4 +221,3 @@ export async function deleteProperty(id: string) {
   revalidatePath("/immobilien");
   return { ok: true as const };
 }
-

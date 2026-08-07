@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
@@ -13,6 +13,13 @@ import { cn } from "@/lib/utils";
 import { BubbleEditorMenu } from "./bubble-menu";
 import { EDITOR_OPEN_MEDIA_PICKER_EVENT } from "./editor-bridge";
 import { EditorMediaPicker } from "./editor-media-picker";
+import { ImageContextMenu } from "./image-context-menu";
+import {
+  ImageInteractions,
+  type ImageDropHint,
+  type ImageMenuState,
+} from "./image-interactions-extension";
+import { LayoutColumn, LayoutRow } from "./layout-row-extension";
 import { SlashCommand } from "./slash-command";
 
 export const EDITOR_SLASH_PLACEHOLDER = "press / to add elements";
@@ -33,6 +40,9 @@ export function Editor({
   className,
 }: EditorProps) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [replacePos, setReplacePos] = useState<number | null>(null);
+  const [imageMenu, setImageMenu] = useState<ImageMenuState | null>(null);
+  const [dropHint, setDropHint] = useState<ImageDropHint>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -47,7 +57,22 @@ export function Editor({
         placeholder,
         showOnlyCurrent: false,
       }),
-      Image,
+      Image.configure({
+        allowBase64: true,
+        HTMLAttributes: {
+          class: "editor-image",
+        },
+        resize: {
+          enabled: true,
+          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+          minWidth: 48,
+          minHeight: 48,
+          alwaysPreserveAspectRatio: true,
+        },
+      }),
+      LayoutColumn,
+      LayoutRow,
+      ImageInteractions,
       Youtube.configure({
         modestBranding: true,
         width: 1280,
@@ -81,14 +106,25 @@ export function Editor({
     content: value || "<p></p>",
     editorProps: {
       attributes: {
-        class:
-          "prose-premium min-h-[14rem] max-w-none px-1 py-1 focus:outline-none",
+        class: "prose-premium min-h-[14rem] max-w-none px-1 py-1 focus:outline-none",
       },
     },
     onUpdate: ({ editor: editorInstance }) => {
       onChange(editorInstance.getHTML());
     },
   });
+
+  useEffect(() => {
+    if (!editor) return;
+    const storage = editor.storage.imageInteractions;
+    if (!storage) return;
+    storage.onMenuChange = setImageMenu;
+    storage.onDropHintChange = setDropHint;
+    return () => {
+      storage.onMenuChange = null;
+      storage.onDropHintChange = null;
+    };
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -100,10 +136,23 @@ export function Editor({
 
   useEffect(() => {
     function openMediaPicker() {
+      setReplacePos(null);
       setMediaPickerOpen(true);
     }
     window.addEventListener(EDITOR_OPEN_MEDIA_PICKER_EVENT, openMediaPicker);
     return () => window.removeEventListener(EDITOR_OPEN_MEDIA_PICKER_EVENT, openMediaPicker);
+  }, []);
+
+  const closeImageMenu = useCallback(() => {
+    setImageMenu(null);
+    if (editor?.storage.imageInteractions) {
+      editor.storage.imageInteractions.menu = null;
+    }
+  }, [editor]);
+
+  const openReplacePicker = useCallback((pos: number) => {
+    setReplacePos(pos);
+    setMediaPickerOpen(true);
   }, []);
 
   if (!editor) return null;
@@ -111,14 +160,43 @@ export function Editor({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-transparent bg-transparent px-2 py-1 caret-foreground focus-within:border-transparent focus-within:bg-transparent focus-within:shadow-none focus-within:ring-0",
+        "relative rounded-2xl border border-transparent bg-transparent px-2 py-1 caret-foreground focus-within:border-transparent focus-within:bg-transparent focus-within:shadow-none focus-within:ring-0",
         className
       )}
       onClick={() => editor.chain().focus().run()}
     >
       <BubbleEditorMenu editor={editor} />
       <EditorContent editor={editor} />
-      <EditorMediaPicker editor={editor} open={mediaPickerOpen} onOpenChange={setMediaPickerOpen} />
+
+      {dropHint ? (
+        <div
+          aria-hidden
+          data-side={dropHint.side}
+          className="editor-image-drop-hint pointer-events-none fixed z-50"
+          style={{
+            left: dropHint.side === "left" ? dropHint.rect.left - 2 : dropHint.rect.right - 2,
+            top: dropHint.rect.top,
+            height: dropHint.rect.height,
+          }}
+        />
+      ) : null}
+
+      <ImageContextMenu
+        editor={editor}
+        menu={imageMenu}
+        onClose={closeImageMenu}
+        onReplace={openReplacePicker}
+      />
+
+      <EditorMediaPicker
+        editor={editor}
+        open={mediaPickerOpen}
+        onOpenChange={(open) => {
+          setMediaPickerOpen(open);
+          if (!open) setReplacePos(null);
+        }}
+        replacePos={replacePos}
+      />
     </div>
   );
 }

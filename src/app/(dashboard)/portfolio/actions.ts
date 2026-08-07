@@ -25,15 +25,57 @@ function parseProjectStatus(raw: string | undefined | null): ProjectStatus {
   return ProjectStatus.Draft;
 }
 
-function isPrismaUnknownFieldError(error: unknown, field: string): boolean {
-  if (!(error instanceof Error)) return false;
-  const m = error.message;
-  return (
-    m.includes(`Unknown field \`${field}\``) ||
-    m.includes(`Unknown argument \`${field}\``) ||
-    m.includes(`Unknown field '${field}'`) ||
-    m.includes(`Unknown argument '${field}'`)
-  );
+function parseOptionalUrl(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  return value ? value : null;
+}
+
+function parseOptionalText(raw: string | null | undefined): string | null {
+  const value = raw?.trim();
+  if (!value || value === "<p></p>") return null;
+  return value;
+}
+
+function parseGalleryUrls(raw: string | null | undefined): string[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function serializePortfolioItem(item: {
+  id: string;
+  title: string;
+  slug: string;
+  status: ProjectStatus;
+  summary: string | null;
+  content: string | null;
+  websiteUrl: string | null;
+  heroImageUrl: string | null;
+  galleryUrls: string[];
+  updatedAt: Date;
+  createdAt: Date;
+}) {
+  return {
+    id: item.id,
+    title: item.title,
+    slug: item.slug,
+    status: item.status,
+    summary: item.summary,
+    content: item.content,
+    websiteUrl: item.websiteUrl,
+    heroImageUrl: item.heroImageUrl,
+    galleryUrls: item.galleryUrls,
+    updatedAt: item.updatedAt.toISOString(),
+    createdAt: item.createdAt.toISOString(),
+  };
 }
 
 export async function createPortfolioQuick() {
@@ -51,41 +93,18 @@ export async function createPortfolioQuick() {
     candidate = `${baseSlug}-${n + 2}`;
   }
 
-  let supportsStatus = true;
-  let item:
-    | {
-        id: string;
-        title: string;
-        slug: string;
-        status?: ProjectStatus;
-        summary: string | null;
-        websiteUrl: string | null;
-        updatedAt: Date;
-        createdAt: Date;
-      }
-    | undefined;
-  try {
-    item = await prisma.portfolioItem.create({
-      data: {
-        title: baseTitle,
-        slug: candidate,
-        status: ProjectStatus.Draft,
-        summary: null,
-        websiteUrl: null,
-      },
-    });
-  } catch (error) {
-    if (!isPrismaUnknownFieldError(error, "status")) throw error;
-    supportsStatus = false;
-    item = await prisma.portfolioItem.create({
-      data: {
-        title: baseTitle,
-        slug: candidate,
-        summary: null,
-        websiteUrl: null,
-      },
-    });
-  }
+  const item = await prisma.portfolioItem.create({
+    data: {
+      title: baseTitle,
+      slug: candidate,
+      status: ProjectStatus.Draft,
+      summary: null,
+      content: null,
+      websiteUrl: null,
+      heroImageUrl: null,
+      galleryUrls: [],
+    },
+  });
 
   await logActivity({
     entityType: "portfolioItem",
@@ -102,16 +121,7 @@ export async function createPortfolioQuick() {
 
   return {
     ok: true as const,
-    item: {
-      id: item.id,
-      title: item.title,
-      slug: item.slug,
-      status: item.status ?? (supportsStatus ? ProjectStatus.Draft : ProjectStatus.Draft),
-      summary: item.summary,
-      websiteUrl: item.websiteUrl,
-      updatedAt: item.updatedAt.toISOString(),
-      createdAt: item.createdAt.toISOString(),
-    },
+    item: serializePortfolioItem(item),
   };
 }
 
@@ -122,39 +132,27 @@ export async function updatePortfolioItem(formData: FormData) {
   const slugRaw = formData.get("slug")?.toString().trim() ?? "";
   const statusRaw = formData.get("status")?.toString() ?? "";
   const summaryRaw = formData.get("summary")?.toString().trim();
-  const websiteUrlRaw = formData.get("websiteUrl")?.toString().trim();
+  const contentRaw = formData.get("content")?.toString();
+  const websiteUrlRaw = formData.get("websiteUrl")?.toString();
+  const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
+  const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
 
   if (!id) return { ok: false as const, error: "Missing item id." };
   if (!title) return { ok: false as const, error: "Title is required." };
 
-  let supportsStatus = true;
-  let current:
-    | {
-        title: string;
-        slug: string;
-        status?: ProjectStatus;
-        summary: string | null;
-        websiteUrl: string | null;
-      }
-    | null = null;
-  for (;;) {
-    try {
-      current = await prisma.portfolioItem.findUnique({
-        where: { id },
-        select: {
-          title: true,
-          slug: true,
-          summary: true,
-          websiteUrl: true,
-          ...(supportsStatus ? { status: true } : {}),
-        },
-      });
-      break;
-    } catch (error) {
-      if (!isPrismaUnknownFieldError(error, "status")) throw error;
-      supportsStatus = false;
-    }
-  }
+  const current = await prisma.portfolioItem.findUnique({
+    where: { id },
+    select: {
+      title: true,
+      slug: true,
+      status: true,
+      summary: true,
+      content: true,
+      websiteUrl: true,
+      heroImageUrl: true,
+      galleryUrls: true,
+    },
+  });
 
   if (!current) return { ok: false as const, error: "Item not found." };
 
@@ -167,23 +165,43 @@ export async function updatePortfolioItem(formData: FormData) {
     if (existing) return { ok: false as const, error: "Slug already exists." };
   }
 
+  const next = {
+    title,
+    slug,
+    status: parseProjectStatus(statusRaw),
+    summary: summaryRaw ? summaryRaw : null,
+    content: parseOptionalText(contentRaw),
+    websiteUrl: parseOptionalUrl(websiteUrlRaw),
+    heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
+    galleryUrls: parseGalleryUrls(galleryUrlsRaw),
+  };
+
   const item = await prisma.portfolioItem.update({
     where: { id },
-    data: {
-      title,
-      slug,
-      ...(supportsStatus ? { status: parseProjectStatus(statusRaw) } : {}),
-      summary: summaryRaw ? summaryRaw : null,
-      websiteUrl: websiteUrlRaw ? websiteUrlRaw : null,
-    },
+    data: next,
   });
+
+  const changedFields: string[] = [];
+  if (current.title !== item.title) changedFields.push("title");
+  if (current.slug !== item.slug) changedFields.push("slug");
+  if (current.status !== item.status) changedFields.push("status");
+  if ((current.summary ?? "") !== (item.summary ?? "")) changedFields.push("summary");
+  if ((current.content ?? "") !== (item.content ?? "")) changedFields.push("content");
+  if ((current.websiteUrl ?? "") !== (item.websiteUrl ?? "")) changedFields.push("websiteUrl");
+  if ((current.heroImageUrl ?? "") !== (item.heroImageUrl ?? "")) changedFields.push("heroImageUrl");
+  if (JSON.stringify(current.galleryUrls) !== JSON.stringify(item.galleryUrls)) {
+    changedFields.push("galleryUrls");
+  }
 
   await logActivity({
     entityType: "portfolioItem",
     entityId: item.id,
     action: "updated",
     title: item.title,
-    details: "Updated from portfolio editor",
+    details:
+      changedFields.length > 0
+        ? `Updated ${changedFields.join(", ")}`
+        : "Updated from portfolio editor",
   });
 
   revalidatePath("/");
@@ -193,16 +211,7 @@ export async function updatePortfolioItem(formData: FormData) {
 
   return {
     ok: true as const,
-    item: {
-      id: item.id,
-      title: item.title,
-      slug: item.slug,
-      status: item.status ?? current.status ?? ProjectStatus.Draft,
-      summary: item.summary,
-      websiteUrl: item.websiteUrl,
-      updatedAt: item.updatedAt.toISOString(),
-      createdAt: item.createdAt.toISOString(),
-    },
+    item: serializePortfolioItem(item),
   };
 }
 
@@ -229,4 +238,3 @@ export async function deletePortfolioItem(id: string) {
   revalidatePath("/portfolio");
   return { ok: true as const };
 }
-

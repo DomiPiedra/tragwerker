@@ -123,14 +123,42 @@ export function ContentFullViewShell({
         </div>
 
         <div className="pointer-events-auto flex shrink-0 items-center gap-2">
-          <ContentFullViewPanelTrigger
-            icon={Sparkles}
-            label="AI Content Creation"
-            onClick={() => {
-              setSidePanel(null);
-              onAi?.();
-            }}
-          />
+          <div className="group/ai relative">
+            <button
+              type="button"
+              aria-label="AI Content Creation"
+              title="AI Content Creation"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                "size-9 rounded-full bg-white/80 text-violet-700 shadow-sm",
+                "ring-1 ring-violet-300/50",
+                "shadow-[0_0_12px_rgba(139,92,246,0.35),0_0_24px_rgba(167,139,250,0.2)]",
+                "transition-all duration-300",
+                "hover:bg-white hover:text-violet-800 hover:ring-violet-400/70",
+                "hover:shadow-[0_0_16px_rgba(139,92,246,0.55),0_0_32px_rgba(167,139,250,0.35),0_0_48px_rgba(196,181,253,0.25)]",
+                "focus-visible:ring-violet-400"
+              )}
+              onClick={() => {
+                setSidePanel(null);
+                onAi?.();
+              }}
+            >
+              <Sparkles className="size-4" />
+            </button>
+            <span
+              role="tooltip"
+              className={cn(
+                "pointer-events-none absolute top-full right-0 z-30 mt-2",
+                "whitespace-nowrap rounded-full border border-violet-200/80 bg-white/95",
+                "px-2.5 py-1 text-[11px] font-medium tracking-tight text-violet-700",
+                "shadow-[0_4px_16px_rgba(139,92,246,0.18)] backdrop-blur-sm",
+                "opacity-0 translate-y-1 transition-all duration-200",
+                "group-hover/ai:opacity-100 group-hover/ai:translate-y-0"
+              )}
+            >
+              More AI tools coming soon
+            </span>
+          </div>
           {settingsContent ? (
             <ContentFullViewSettingsMenu
               open={sidePanel === "settings"}

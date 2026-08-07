@@ -204,6 +204,154 @@
     @apply absolute inset-0 size-full border-0;
   }
 
+  .prose-premium img.editor-image,
+  .prose-premium .editor-image {
+    @apply my-0 max-w-full rounded-md;
+  }
+
+  .prose-premium [data-resize-wrapper] {
+    @apply relative my-4 inline-block max-w-full;
+  }
+
+  .prose-premium [data-resize-wrapper] img {
+    @apply m-0 block h-auto max-w-full;
+  }
+
+  .prose-premium [data-resize-handle] {
+    width: 10px;
+    height: 10px;
+    border-radius: 9999px;
+    background: var(--background);
+    border: 2px solid color-mix(in oklch, var(--foreground) 55%, transparent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    z-index: 2;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+    transition: opacity 120ms ease;
+  }
+
+  .prose-premium [data-resize-handle="top-left"] {
+    top: 0;
+    left: 0;
+    cursor: nwse-resize;
+  }
+
+  .prose-premium [data-resize-handle="top-right"] {
+    top: 0;
+    left: auto;
+    right: 0;
+    transform: translate(50%, -50%);
+    cursor: nesw-resize;
+  }
+
+  .prose-premium [data-resize-handle="bottom-left"] {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    transform: translate(-50%, 50%);
+    cursor: nesw-resize;
+  }
+
+  .prose-premium [data-resize-handle="bottom-right"] {
+    top: auto;
+    left: auto;
+    bottom: 0;
+    right: 0;
+    transform: translate(50%, 50%);
+    cursor: nwse-resize;
+  }
+
+  .prose-premium [data-resize-wrapper]:hover [data-resize-handle],
+  .prose-premium [data-resize-state="true"] [data-resize-handle],
+  .prose-premium.ProseMirror-focused [data-resize-wrapper]:hover [data-resize-handle] {
+    opacity: 1;
+  }
+
+  .prose-premium .editor-layout-row,
+  .prose-premium div[data-type="layout-row"],
+  .prose-premium .editor-image-row,
+  .prose-premium div[data-type="image-row"] {
+    @apply my-4 grid grid-cols-2 items-stretch gap-3;
+  }
+
+  .prose-premium .editor-layout-column,
+  .prose-premium div[data-type="layout-column"] {
+    @apply min-w-0;
+  }
+
+  .prose-premium .editor-layout-row [data-resize-wrapper],
+  .prose-premium div[data-type="layout-row"] [data-resize-wrapper],
+  .prose-premium .editor-layout-row [data-resize-container],
+  .prose-premium div[data-type="layout-row"] [data-resize-container],
+  .prose-premium .editor-image-row [data-resize-wrapper],
+  .prose-premium div[data-type="image-row"] [data-resize-wrapper],
+  .prose-premium .editor-image-row [data-resize-container],
+  .prose-premium div[data-type="image-row"] [data-resize-container] {
+    @apply my-0 w-full max-w-full;
+  }
+
+  .prose-premium .editor-layout-row img,
+  .prose-premium div[data-type="layout-row"] img,
+  .prose-premium .editor-image-row img,
+  .prose-premium div[data-type="image-row"] img {
+    @apply w-full max-w-full object-cover;
+  }
+
+  .prose-premium {
+    position: relative;
+    padding-left: 1.25rem;
+  }
+
+  .prose-premium > * {
+    position: relative;
+  }
+
+  .editor-block-drag-handle {
+    position: absolute;
+    left: -1.2rem;
+    top: 0.35rem;
+    z-index: 5;
+    width: 0.85rem;
+    height: 1.15rem;
+    border: 0;
+    border-radius: 0.25rem;
+    padding: 0;
+    cursor: grab;
+    opacity: 0;
+    background:
+      radial-gradient(circle, color-mix(in oklch, var(--foreground) 45%, transparent) 1.1px, transparent 1.2px)
+        0 0 / 5px 5px;
+    transition: opacity 120ms ease;
+  }
+
+  .editor-block-drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .prose-premium > *:hover > .editor-block-drag-handle,
+  .prose-premium .editor-block-drag-handle:hover,
+  .prose-premium.ProseMirror-focused > *:hover > .editor-block-drag-handle {
+    opacity: 1;
+  }
+
+  .editor-image-drop-hint {
+    background: color-mix(in oklch, var(--foreground) 75%, transparent);
+    box-shadow: 0 0 0 1px var(--background);
+  }
+
+  .editor-image-drop-hint[data-side="left"],
+  .editor-image-drop-hint[data-side="right"] {
+    width: 4px;
+    border-radius: 9999px;
+  }
+
+  @media (max-width: 640px) {
+    .prose-premium .editor-layout-row,
+    .prose-premium div[data-type="layout-row"] {
+      @apply grid-cols-1;
+    }
+  }
+
   /* Full-view canvas: dot grid only (scrolls with content). */
   .content-full-view-grid {
     background-color: #e8e8e8;
