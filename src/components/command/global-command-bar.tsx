@@ -210,6 +210,7 @@ export function GlobalCommandBar() {
     <AnimatePresence>
       {isOpen ? (
         <motion.div
+          key="command-bar-overlay"
           className="fixed inset-0 z-[120] bg-black/30 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
@@ -287,6 +288,7 @@ export function GlobalCommandBar() {
                 <AnimatePresence>
                   {isTyping && !isRecording ? (
                     <motion.div
+                      key="typing-aura"
                       className="pointer-events-none absolute inset-0 rounded-2xl"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -311,6 +313,7 @@ export function GlobalCommandBar() {
                 <AnimatePresence>
                   {isRecording ? (
                     <motion.div
+                      key="recording-aura"
                       className="pointer-events-none absolute inset-0 rounded-2xl"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -385,7 +388,7 @@ export function GlobalCommandBar() {
                         <div className="flex flex-wrap gap-1.5">
                           {contentFillSuggestions.map((suggestion) => (
                             <button
-                              key={suggestion.id}
+                              key={suggestion.id || `suggestion-${suggestion.list}-${suggestion.title}`}
                               type="button"
                               role="option"
                               title="Fill search with this title"
@@ -461,7 +464,7 @@ export function GlobalCommandBar() {
                     const index = results.findIndex((x) => x.command.id === result.command.id);
                     return (
                       <CommandItem
-                        key={result.command.id}
+                        key={result.command.id || `${category}-${result.command.title}-${index}`}
                         command={result.command}
                         active={activeIndex === index}
                         onHover={() => {
@@ -484,6 +487,7 @@ export function GlobalCommandBar() {
           <AnimatePresence>
             {toastMessage ? (
               <motion.div
+                key="command-toast"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
@@ -496,6 +500,7 @@ export function GlobalCommandBar() {
         </motion.div>
       ) : null}
       <CommandMediaPicker
+        key="command-media-picker"
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         selectedIds={attachments.map((a) => a.id)}
