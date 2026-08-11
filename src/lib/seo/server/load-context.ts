@@ -34,12 +34,10 @@ export async function loadSeoContentContext(
     case "portfolioItem": {
       const row = await prisma.portfolioItem.findUnique({
         where: { id: entityId },
-        select: { title: true, summary: true, content: true, websiteUrl: true },
+        select: { title: true, summary: true, content: true },
       });
       if (!row) return null;
-      const body = [row.summary ?? "", row.content ?? "", row.websiteUrl ?? ""]
-        .filter(Boolean)
-        .join("\n\n");
+      const body = [row.summary ?? "", row.content ?? ""].filter(Boolean).join("\n\n");
       return buildContext(label, row.title, body);
     }
     case "teamMember": {

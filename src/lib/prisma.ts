@@ -10,15 +10,22 @@ const globalForPrisma = globalThis as unknown as {
  * Increment when adding fields/models that older in-memory PrismaClient instances
  * won't know about (dev HMR keeps the previous singleton on globalThis).
  */
-const PRISMA_SCHEMA_REVISION = 5;
+const PRISMA_SCHEMA_REVISION = 7;
 
 /** Delegates from recent schema changes; stale dev singletons are recreated when any are missing. */
-const REQUIRED_DELEGATES = ["contentOpen", "job", "portfolioItem"] as const;
+const REQUIRED_DELEGATES = [
+  "contentOpen",
+  "job",
+  "portfolioItem",
+  "analyticsConnection",
+  "analyticsPageStat",
+  "analyticsDailyStat",
+] as const;
 
 /** Field-level checks catch clients created before a migration's generate landed. */
 const REQUIRED_MODEL_FIELDS: Record<string, string[]> = {
   Project: ["content", "heroImageUrl", "galleryUrls"],
-  PortfolioItem: ["content", "heroImageUrl", "galleryUrls"],
+  PortfolioItem: ["content", "heroImageUrl", "galleryUrls", "sortOrder", "details"],
   BlogPost: ["heroImageUrl", "galleryUrls"],
   Event: ["content", "heroImageUrl", "galleryUrls"],
   Property: ["content", "heroImageUrl", "galleryUrls"],

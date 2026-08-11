@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "PortfolioItem" ADD COLUMN "sortOrder" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "PortfolioItem" ADD COLUMN "details" JSONB NOT NULL DEFAULT '[]';

@@ -20,13 +20,14 @@ import {
   Link2,
   MoreHorizontal,
   Pencil,
+  Plus,
   Search,
   Trash2,
   X,
 } from "lucide-react";
 
 import { ProjectStatus } from "@/generated/prisma/enums";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -79,6 +80,10 @@ import {
 } from "@/lib/content-site-settings";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
+import {
+  detailsEqual,
+  type PortfolioDetailRow,
+} from "@/lib/portfolio/details";
 
 import { createPortfolioQuick, deletePortfolioItem, updatePortfolioItem } from "./actions";
 
@@ -92,6 +97,8 @@ type PortfolioRow = {
   websiteUrl: string | null;
   heroImageUrl: string | null;
   galleryUrls: string[];
+  sortOrder: number;
+  details: PortfolioDetailRow[];
   updatedAt: string;
   createdAt: string;
 };
@@ -105,6 +112,8 @@ type PortfolioDraft = {
   websiteUrl: string;
   heroImageUrl: string;
   galleryUrls: string[];
+  sortOrder: number;
+  details: PortfolioDetailRow[];
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
@@ -194,6 +203,8 @@ export function PortfolioListClient({
       websiteUrl: selected.websiteUrl ?? "",
       heroImageUrl: selected.heroImageUrl ?? "",
       galleryUrls: selected.galleryUrls ?? [],
+      sortOrder: selected.sortOrder ?? 0,
+      details: selected.details?.length ? selected.details : [],
     });
     slugSyncedRef.current = slugifyTitle(selected.title) === selected.slug;
   }, [selected]);
@@ -298,7 +309,9 @@ export function PortfolioListClient({
       draftSnapshot.websiteUrl.trim() === (selectedSnapshot.websiteUrl ?? "") &&
       draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
       JSON.stringify(draftSnapshot.galleryUrls) ===
-        JSON.stringify(selectedSnapshot.galleryUrls ?? []);
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []) &&
+      draftSnapshot.sortOrder === (selectedSnapshot.sortOrder ?? 0) &&
+      detailsEqual(draftSnapshot.details, selectedSnapshot.details ?? []);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -311,6 +324,8 @@ export function PortfolioListClient({
     formData.set("websiteUrl", draftSnapshot.websiteUrl);
     formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
     formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
+    formData.set("sortOrder", String(draftSnapshot.sortOrder));
+    formData.set("details", JSON.stringify(draftSnapshot.details));
 
     const result = await updatePortfolioItem(formData);
     if (!result.ok) {
@@ -421,6 +436,64 @@ export function PortfolioListClient({
     setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
   }
 
+  function updateDetailRow(index: number, patch: Partial<PortfolioDetailRow>) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const details = prev.details.map((row, i) => (i === index ? { ...row, ...patch } : row));
+      return { ...prev, details };
+    });
+  }
+
+  function addDetailRow() {
+    setDraft((prev) =>
+      prev ? { ...prev, details: [...prev.details, { label: "", value: "" }] } : prev
+    );
+  }
+
+  function removeDetailRow(index: number) {
+    setDraft((prev) =>
+      prev ? { ...prev, details: prev.details.filter((_, i) => i !== index) } : prev
+    );
+  }
+
+  function renderDetailsEditor() {
+    const rows = draft?.details ?? [];
+    return (
+      <div className="space-y-2">
+        {rows.map((row, index) => (
+          <div key={index} className="flex items-start gap-2">
+            <Input
+              value={row.label}
+              placeholder="Label (e.g. Client)"
+              className="h-9 flex-1 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDetailRow(index, { label: e.target.value })}
+            />
+            <Input
+              value={row.value}
+              placeholder="Value"
+              className="h-9 flex-[1.4] border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDetailRow(index, { value: e.target.value })}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground shrink-0"
+              onClick={() => removeDetailRow(index)}
+              aria-label="Remove detail row"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addDetailRow}>
+          <Plus className="size-3.5" />
+          Add detail
+        </Button>
+      </div>
+    );
+  }
+
   function handleAIEdit(message: string) {
     setError(message);
     window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
@@ -476,6 +549,20 @@ export function PortfolioListClient({
               }
             />
           </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Sort order">
+            <Input
+              type="number"
+              value={draft.sortOrder}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) =>
+                  prev
+                    ? { ...prev, sortOrder: Number.parseInt(e.target.value, 10) || 0 }
+                    : prev
+                )
+              }
+            />
+          </ContentFullViewPanelField>
           <ContentFullViewPanelField label="Hero image">
             <MediaImagePicker
               value={draft.heroImageUrl}
@@ -483,6 +570,17 @@ export function PortfolioListClient({
               placeholder="Choose hero image"
               onChange={updateHeroImage}
             />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Gallery">
+            <MediaGalleryPicker
+              value={draft.galleryUrls}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Details">
+            {renderDetailsEditor()}
           </ContentFullViewPanelField>
         </ContentFullViewPanelSection>
       </div>
@@ -522,6 +620,28 @@ export function PortfolioListClient({
               className="prose-premium-canvas"
               placeholder="press / to add text, images, and more"
             />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              Gallery
+            </h3>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              Details
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              Optional label / value rows (Client, Year, Role, Tools — any labels).
+            </p>
+            {renderDetailsEditor()}
           </div>
 
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
@@ -638,6 +758,31 @@ export function PortfolioListClient({
               }
             />
           </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <CircleDot className="size-3.5" />
+              Details
+            </label>
+            {renderDetailsEditor()}
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 text-sm">
+              <CircleDot className="size-3.5" />
+              Sort order
+            </label>
+            <Input
+              type="number"
+              value={draft?.sortOrder ?? 0}
+              className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+              onChange={(e) =>
+                setDraft((prev) =>
+                  prev
+                    ? { ...prev, sortOrder: Number.parseInt(e.target.value, 10) || 0 }
+                    : prev
+                )
+              }
+            />
+          </div>
         </div>
 
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
@@ -660,9 +805,7 @@ export function PortfolioListClient({
           entityType: "portfolioItem",
           entityId: selected.id,
           title: draft?.title ?? selected.title,
-          content: [draft?.summary ?? "", draft?.content ?? "", draft?.websiteUrl ?? ""]
-            .filter(Boolean)
-            .join("\n\n"),
+          content: [draft?.summary ?? "", draft?.content ?? ""].filter(Boolean).join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">

@@ -87,10 +87,15 @@ model PortfolioItem {
   slug         String        @unique
   status       ProjectStatus @default(Draft)
   summary      String?
+  /// TipTap HTML (same idea as BlogPost.content)
   content      String?
   websiteUrl   String?
+  /// Cover / hero image (MediaImagePicker); public sites may map as coverImageUrl
   heroImageUrl String?
   galleryUrls  String[]      @default([])
+  sortOrder    Int           @default(0)
+  /// Variable meta rows: [{ "label": "Client", "value": "…" }, …]
+  details      Json          @default("[]")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -285,4 +290,61 @@ model MediaFolder {
 
   @@index([parentId])
   @@unique([name, parentId])
+}
+
+/// Single Google Analytics connection for the workspace (OAuth + GA4 property).
+model AnalyticsConnection {
+  id                   String    @id @default(cuid())
+  googleAccountEmail   String?
+  propertyId           String?
+  propertyDisplayName  String?
+  /// AES-GCM encrypted refresh token
+  refreshTokenEnc      String?
+  accessTokenEnc       String?
+  accessTokenExpiresAt DateTime?
+  lastSyncAt           DateTime?
+  lastBriefJson        String?
+  lastBriefAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+/// Daily site-level totals for overview sparklines.
+model AnalyticsDailyStat {
+  id             String   @id @default(cuid())
+  date           DateTime @db.Date
+  sessions       Int      @default(0)
+  users          Int      @default(0)
+  pageviews      Int      @default(0)
+  engagementRate Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date])
+  @@index([date])
+}
+
+/// Per-path metrics for a reporting window (synced from GA4).
+model AnalyticsPageStat {
+  id               String   @id @default(cuid())
+  path             String
+  dateFrom         DateTime @db.Date
+  dateTo           DateTime @db.Date
+  pageviews        Int      @default(0)
+  sessions         Int      @default(0)
+  users            Int      @default(0)
+  avgEngagementSec Float    @default(0)
+  bounceRate       Float    @default(0)
+  entrances        Int      @default(0)
+  exits            Int      @default(0)
+  entityType       String?
+  entityId         String?
+  entityTitle      String?
+  pageviewsPrev    Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([path, dateFrom, dateTo])
+  @@index([entityType, entityId])
+  @@index([pageviews])
 }
