@@ -116,6 +116,9 @@ export async function createPortfolioQuick() {
     candidate = `${baseSlug}-${n + 2}`;
   }
 
+  const max = await prisma.portfolioItem.aggregate({ _max: { sortOrder: true } });
+  const sortOrder = (max._max.sortOrder ?? 0) + 1;
+
   const item = await prisma.portfolioItem.create({
     data: {
       title: baseTitle,
@@ -126,7 +129,7 @@ export async function createPortfolioQuick() {
       websiteUrl: null,
       heroImageUrl: null,
       galleryUrls: [],
-      sortOrder: 0,
+      sortOrder,
       details: [],
     },
   });
@@ -146,6 +149,43 @@ export async function createPortfolioQuick() {
     ok: true as const,
     item: serializePortfolioItem(item),
   };
+}
+
+export async function reorderPortfolioItems(orderedIds: string[]) {
+  await requireEditorOrAdmin();
+  const unique = Array.from(new Set(orderedIds)).slice(0, 500);
+  if (unique.length === 0) return { ok: true as const };
+
+  const existing = await prisma.portfolioItem.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, slug: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const ids = unique.filter((id) => existingIds.has(id));
+
+  if (ids.length === 0) return { ok: true as const };
+
+  await prisma.$transaction(
+    ids.map((id, sortOrder) =>
+      prisma.portfolioItem.update({
+        where: { id },
+        data: { sortOrder },
+      })
+    )
+  );
+
+  await logActivity({
+    entityType: "portfolioItem",
+    entityId: ids[0] ?? "bulk",
+    action: "reordered",
+    title: "Portfolio order updated",
+    details: `Reordered ${ids.length} portfolio items`,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/portfolio");
+
+  return { ok: true as const, reordered: ids.length };
 }
 
 export async function updatePortfolioItem(formData: FormData) {

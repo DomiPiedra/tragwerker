@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Filter,
   Globe,
+  GripVertical,
   ImageIcon,
   Link2,
   MoreHorizontal,
@@ -85,7 +86,12 @@ import {
   type PortfolioDetailRow,
 } from "@/lib/portfolio/details";
 
-import { createPortfolioQuick, deletePortfolioItem, updatePortfolioItem } from "./actions";
+import {
+  createPortfolioQuick,
+  deletePortfolioItem,
+  reorderPortfolioItems,
+  updatePortfolioItem,
+} from "./actions";
 
 type PortfolioRow = {
   id: string;
@@ -156,6 +162,8 @@ export function PortfolioListClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>([]);
   const [isPending, startTransition] = useTransition();
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const { isResizing, startPanelResize, panelStyle } = usePreviewPanelResize();
@@ -294,6 +302,74 @@ export function PortfolioListClient({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeIndex, filtered, selectedId, selected, draft, isFullPortfolioView]);
+
+  function filterPortfolioItems(itemsToFilter: PortfolioRow[]): PortfolioRow[] {
+    const q = searchQuery.trim().toLowerCase();
+    return itemsToFilter.filter((item) => {
+      const status = item.status ?? ProjectStatus.Draft;
+      const statusOk = statusFilter.length === 0 || statusFilter.includes(status);
+      const searchOk =
+        q.length === 0 ||
+        item.title.toLowerCase().includes(q) ||
+        item.slug.toLowerCase().includes(q) ||
+        (item.websiteUrl ?? "").toLowerCase().includes(q) ||
+        (item.summary ?? "").toLowerCase().includes(q) ||
+        formatStatus(status).toLowerCase().includes(q);
+      return statusOk && searchOk;
+    });
+  }
+
+  async function handlePortfolioReorder(fromId: string, toId: string, insertAfter: boolean) {
+    if (!fromId || !toId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+    if (fromId === toId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const fromIndex = items.findIndex((it) => it.id === fromId);
+    const targetIndex = items.findIndex((it) => it.id === toId);
+    if (fromIndex < 0 || targetIndex < 0) return;
+
+    // UX: Drop auf die erste/letzte Zeile soll immer an den Rand führen,
+    // damit "ganz oben" / "ganz unten" nicht vom genauen Y-Pixel abhängt.
+    if (targetIndex === 0) insertAfter = false;
+    if (targetIndex === items.length - 1) insertAfter = true;
+
+    const prevItems = items;
+    const next = [...items];
+    const [moved] = next.splice(fromIndex, 1);
+
+    const toIndexAfterRemoval = next.findIndex((it) => it.id === toId);
+    const insertIndex = insertAfter ? toIndexAfterRemoval + 1 : toIndexAfterRemoval;
+    next.splice(insertIndex, 0, moved);
+
+    const nextWithOrder = next.map((it, idx) => ({ ...it, sortOrder: idx }));
+    setItems(nextWithOrder);
+
+    if (selectedId) {
+      const nextFiltered = filterPortfolioItems(nextWithOrder);
+      const nextActive = nextFiltered.findIndex((it) => it.id === selectedId);
+      if (nextActive >= 0) setActiveIndex(nextActive);
+    }
+
+    startTransition(async () => {
+      try {
+        setError(null);
+        await reorderPortfolioItems(nextWithOrder.map((it) => it.id));
+      } catch (err) {
+        setItems(prevItems);
+        setError(err instanceof Error ? err.message : "Reorder failed");
+      } finally {
+        setDragOverId(null);
+        setDraggedId(null);
+      }
+    });
+  }
 
   async function persistDraft(
     selectedSnapshot: PortfolioRow | null = selected,
@@ -906,8 +982,28 @@ export function PortfolioListClient({
                       className={cn(
                         "cursor-pointer",
                         activeIndex === idx && "bg-muted/60",
-                        selectedId === item.id && "bg-muted"
+                        selectedId === item.id && "bg-muted",
+                        dragOverId === item.id && draggedId !== item.id && "bg-primary/10",
+                        draggedId === item.id && "opacity-55"
                       )}
+                        onDragOver={(event) => {
+                          event.preventDefault(); // allow drop
+                          if (draggedId) event.dataTransfer.dropEffect = "move";
+                          if (dragOverId !== item.id) setDragOverId(item.id);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+
+                          const from = event.dataTransfer.getData("text/plain") || draggedId;
+                          if (!from) return;
+
+                          const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                          const insertAfter =
+                            event.clientY > rect.top + rect.height / 2;
+
+                          void handlePortfolioReorder(from, item.id, insertAfter);
+                        }}
                       onClick={() =>
                         schedulePreview(() => selectItemPreview(item.id, idx))
                       }
@@ -916,7 +1012,72 @@ export function PortfolioListClient({
                         openFull(() => openItemFullView(item));
                       }}
                     >
-                      <TableCell className="px-5 py-3 font-medium">{item.title}</TableCell>
+                      <TableCell className="px-5 py-3 font-medium">
+                        <div
+                          draggable
+                          aria-label={`Reorder ${item.title}`}
+                          className={cn(
+                            "flex items-center gap-2",
+                            "cursor-grab text-muted-foreground hover:text-foreground",
+                            draggedId === item.id && "cursor-grabbing"
+                          )}
+                          onDragStart={(event) => {
+                            event.dataTransfer.effectAllowed = "move";
+                            event.dataTransfer.setData("text/plain", item.id);
+                            setDraggedId(item.id);
+                            setDragOverId(item.id);
+
+                            // Better drag preview than the default "ghost" in all browsers.
+                            // We clone the visible title row content and anchor the preview center.
+                            const node = event.currentTarget as HTMLElement;
+                            const dragImg = node.cloneNode(true) as HTMLElement;
+                            dragImg.style.position = "absolute";
+                            dragImg.style.top = "-1000px";
+                            dragImg.style.left = "-1000px";
+                            dragImg.style.pointerEvents = "none";
+                            dragImg.style.background = "rgba(255,255,255,0.95)";
+                            dragImg.style.padding = "6px 10px";
+                            dragImg.style.borderRadius = "10px";
+                            dragImg.style.boxShadow = "0 8px 28px rgba(0,0,0,0.15)";
+                            dragImg.style.width = `${node.offsetWidth}px`;
+
+                            document.body.appendChild(dragImg);
+                            const x = Math.round(dragImg.offsetWidth / 2);
+                            const y = Math.round(dragImg.offsetHeight / 2);
+                            event.dataTransfer.setDragImage(dragImg, x, y);
+                            window.setTimeout(() => {
+                              dragImg.remove();
+                            }, 0);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedId(null);
+                            setDragOverId(null);
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault(); // allow drop
+                            event.dataTransfer.dropEffect = "move";
+                            if (dragOverId !== item.id) setDragOverId(item.id);
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const from =
+                              event.dataTransfer.getData("text/plain") || draggedId;
+                            if (!from) return;
+                            const tr = (event.currentTarget as HTMLElement).closest("tr");
+                            const rect = tr?.getBoundingClientRect();
+                            const insertAfter = rect
+                              ? event.clientY > rect.top + rect.height / 2
+                              : true;
+
+                            void handlePortfolioReorder(from, item.id, insertAfter);
+                          }}
+                        >
+                          <GripVertical className="size-4" />
+                          <p className="truncate text-foreground">{item.title}</p>
+                        </div>
+                      </TableCell>
                       <TableCell className="px-5 py-3">
                         <span className={cn("inline-flex rounded-full px-4 py-1 text-sm", statusClass(status))}>
                           {formatStatus(status)}
