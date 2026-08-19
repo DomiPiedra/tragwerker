@@ -11,8 +11,9 @@ import { runAIHandler } from "@/app/actions/ai-handler";
 import { cn } from "@/lib/utils";
 
 import { BubbleEditorMenu } from "./bubble-menu";
-import { EDITOR_OPEN_MEDIA_PICKER_EVENT } from "./editor-bridge";
+import { EDITOR_OPEN_MEDIA_PICKER_EVENT, EDITOR_OPEN_VIDEO_PICKER_EVENT } from "./editor-bridge";
 import { EditorMediaPicker } from "./editor-media-picker";
+import { EditorVideoPicker } from "./editor-video-picker";
 import { ImageContextMenu } from "./image-context-menu";
 import {
   ImageInteractions,
@@ -21,6 +22,7 @@ import {
 } from "./image-interactions-extension";
 import { LayoutColumn, LayoutRow } from "./layout-row-extension";
 import { SlashCommand } from "./slash-command";
+import { EditorVideo } from "./video-extension";
 
 export const EDITOR_SLASH_PLACEHOLDER = "press / to add elements";
 
@@ -40,6 +42,7 @@ export function Editor({
   className,
 }: EditorProps) {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
   const [replacePos, setReplacePos] = useState<number | null>(null);
   const [imageMenu, setImageMenu] = useState<ImageMenuState | null>(null);
   const [dropHint, setDropHint] = useState<ImageDropHint>(null);
@@ -73,6 +76,7 @@ export function Editor({
       LayoutColumn,
       LayoutRow,
       ImageInteractions,
+      EditorVideo,
       Youtube.configure({
         modestBranding: true,
         width: 1280,
@@ -139,8 +143,15 @@ export function Editor({
       setReplacePos(null);
       setMediaPickerOpen(true);
     }
+    function openVideoPicker() {
+      setVideoPickerOpen(true);
+    }
     window.addEventListener(EDITOR_OPEN_MEDIA_PICKER_EVENT, openMediaPicker);
-    return () => window.removeEventListener(EDITOR_OPEN_MEDIA_PICKER_EVENT, openMediaPicker);
+    window.addEventListener(EDITOR_OPEN_VIDEO_PICKER_EVENT, openVideoPicker);
+    return () => {
+      window.removeEventListener(EDITOR_OPEN_MEDIA_PICKER_EVENT, openMediaPicker);
+      window.removeEventListener(EDITOR_OPEN_VIDEO_PICKER_EVENT, openVideoPicker);
+    };
   }, []);
 
   const closeImageMenu = useCallback(() => {
@@ -196,6 +207,12 @@ export function Editor({
           if (!open) setReplacePos(null);
         }}
         replacePos={replacePos}
+      />
+
+      <EditorVideoPicker
+        editor={editor}
+        open={videoPickerOpen}
+        onOpenChange={setVideoPickerOpen}
       />
     </div>
   );

@@ -35,7 +35,7 @@ declare module "@tiptap/core" {
 }
 
 const COLUMN_CONTENT =
-  "(paragraph | heading | blockquote | bulletList | orderedList | codeBlock | horizontalRule | image | youtube)+";
+  "(paragraph | heading | blockquote | bulletList | orderedList | codeBlock | horizontalRule | image | youtube | editorVideo)+";
 
 function cloneNode(node: ProseMirrorNode): ProseMirrorNode {
   return node.type.create(node.attrs, node.content, node.marks);

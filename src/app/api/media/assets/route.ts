@@ -28,11 +28,17 @@ export async function GET(request: Request) {
   const items =
     scope === "all"
       ? rows
-      : rows.filter((row) => {
-          const mime = row.mimeType.toLowerCase();
-          if (mime.startsWith("image/")) return true;
-          return /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico)$/i.test(row.originalName);
-        });
+      : scope === "videos"
+        ? rows.filter((row) => {
+            const mime = row.mimeType.toLowerCase();
+            if (mime.startsWith("video/")) return true;
+            return /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(row.originalName);
+          })
+        : rows.filter((row) => {
+            const mime = row.mimeType.toLowerCase();
+            if (mime.startsWith("image/")) return true;
+            return /\.(png|jpe?g|webp|gif|svg|avif|bmp|ico)$/i.test(row.originalName);
+          });
 
   return NextResponse.json({ items });
 }
