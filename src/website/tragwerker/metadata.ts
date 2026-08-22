@@ -21,15 +21,11 @@ export async function buildEntityMetadata(
   const description = seo?.seoDescription?.trim() || fallback.description;
   const canonical = seo?.canonicalUrl?.trim() || absoluteUrl(fallback.path);
   const image = seo?.seoImage?.trim() || fallback.imageUrl || undefined;
-  const indexable = seo?.indexable ?? true;
-
   return {
     title,
     description,
     alternates: { canonical },
-    robots: indexable
-      ? { index: true, follow: seo?.followLinks ?? true }
-      : { index: false, follow: false },
+    robots: { index: false, follow: false },
     openGraph: {
       title,
       description,
@@ -52,6 +48,7 @@ export function buildStaticMetadata(fallback: MetadataFallback): Metadata {
     title: fallback.title,
     description: fallback.description,
     alternates: { canonical: absoluteUrl(fallback.path) },
+    robots: { index: false, follow: false },
     openGraph: {
       title: fallback.title,
       description: fallback.description,
