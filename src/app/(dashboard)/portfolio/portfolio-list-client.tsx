@@ -16,17 +16,19 @@ import {
   ExternalLink,
   Filter,
   Globe,
+  GripVertical,
   ImageIcon,
   Link2,
   MoreHorizontal,
   Pencil,
+  Plus,
   Search,
   Trash2,
   X,
 } from "lucide-react";
 
 import { ProjectStatus } from "@/generated/prisma/enums";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -79,8 +81,17 @@ import {
 } from "@/lib/content-site-settings";
 import { useContentCreateListener } from "@/hooks/use-content-create-listener";
 import { CONTENT_CREATE_EVENTS } from "@/lib/content-create";
+import {
+  detailsEqual,
+  type PortfolioDetailRow,
+} from "@/lib/portfolio/details";
 
-import { createPortfolioQuick, deletePortfolioItem, updatePortfolioItem } from "./actions";
+import {
+  createPortfolioQuick,
+  deletePortfolioItem,
+  reorderPortfolioItems,
+  updatePortfolioItem,
+} from "./actions";
 
 type PortfolioRow = {
   id: string;
@@ -92,6 +103,8 @@ type PortfolioRow = {
   websiteUrl: string | null;
   heroImageUrl: string | null;
   galleryUrls: string[];
+  sortOrder: number;
+  details: PortfolioDetailRow[];
   updatedAt: string;
   createdAt: string;
 };
@@ -105,6 +118,8 @@ type PortfolioDraft = {
   websiteUrl: string;
   heroImageUrl: string;
   galleryUrls: string[];
+  sortOrder: number;
+  details: PortfolioDetailRow[];
 };
 
 const dateFmt = new Intl.DateTimeFormat("en-CA", { dateStyle: "medium" });
@@ -147,6 +162,8 @@ export function PortfolioListClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProjectStatus[]>([]);
   const [isPending, startTransition] = useTransition();
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const { isResizing, startPanelResize, panelStyle } = usePreviewPanelResize();
@@ -194,6 +211,8 @@ export function PortfolioListClient({
       websiteUrl: selected.websiteUrl ?? "",
       heroImageUrl: selected.heroImageUrl ?? "",
       galleryUrls: selected.galleryUrls ?? [],
+      sortOrder: selected.sortOrder ?? 0,
+      details: selected.details?.length ? selected.details : [],
     });
     slugSyncedRef.current = slugifyTitle(selected.title) === selected.slug;
   }, [selected]);
@@ -284,6 +303,74 @@ export function PortfolioListClient({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeIndex, filtered, selectedId, selected, draft, isFullPortfolioView]);
 
+  function filterPortfolioItems(itemsToFilter: PortfolioRow[]): PortfolioRow[] {
+    const q = searchQuery.trim().toLowerCase();
+    return itemsToFilter.filter((item) => {
+      const status = item.status ?? ProjectStatus.Draft;
+      const statusOk = statusFilter.length === 0 || statusFilter.includes(status);
+      const searchOk =
+        q.length === 0 ||
+        item.title.toLowerCase().includes(q) ||
+        item.slug.toLowerCase().includes(q) ||
+        (item.websiteUrl ?? "").toLowerCase().includes(q) ||
+        (item.summary ?? "").toLowerCase().includes(q) ||
+        formatStatus(status).toLowerCase().includes(q);
+      return statusOk && searchOk;
+    });
+  }
+
+  async function handlePortfolioReorder(fromId: string, toId: string, insertAfter: boolean) {
+    if (!fromId || !toId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+    if (fromId === toId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const fromIndex = items.findIndex((it) => it.id === fromId);
+    const targetIndex = items.findIndex((it) => it.id === toId);
+    if (fromIndex < 0 || targetIndex < 0) return;
+
+    // UX: Drop auf die erste/letzte Zeile soll immer an den Rand führen,
+    // damit "ganz oben" / "ganz unten" nicht vom genauen Y-Pixel abhängt.
+    if (targetIndex === 0) insertAfter = false;
+    if (targetIndex === items.length - 1) insertAfter = true;
+
+    const prevItems = items;
+    const next = [...items];
+    const [moved] = next.splice(fromIndex, 1);
+
+    const toIndexAfterRemoval = next.findIndex((it) => it.id === toId);
+    const insertIndex = insertAfter ? toIndexAfterRemoval + 1 : toIndexAfterRemoval;
+    next.splice(insertIndex, 0, moved);
+
+    const nextWithOrder = next.map((it, idx) => ({ ...it, sortOrder: idx }));
+    setItems(nextWithOrder);
+
+    if (selectedId) {
+      const nextFiltered = filterPortfolioItems(nextWithOrder);
+      const nextActive = nextFiltered.findIndex((it) => it.id === selectedId);
+      if (nextActive >= 0) setActiveIndex(nextActive);
+    }
+
+    startTransition(async () => {
+      try {
+        setError(null);
+        await reorderPortfolioItems(nextWithOrder.map((it) => it.id));
+      } catch (err) {
+        setItems(prevItems);
+        setError(err instanceof Error ? err.message : "Reorder failed");
+      } finally {
+        setDragOverId(null);
+        setDraggedId(null);
+      }
+    });
+  }
+
   async function persistDraft(
     selectedSnapshot: PortfolioRow | null = selected,
     draftSnapshot: PortfolioDraft | null = draft
@@ -298,7 +385,9 @@ export function PortfolioListClient({
       draftSnapshot.websiteUrl.trim() === (selectedSnapshot.websiteUrl ?? "") &&
       draftSnapshot.heroImageUrl.trim() === (selectedSnapshot.heroImageUrl ?? "") &&
       JSON.stringify(draftSnapshot.galleryUrls) ===
-        JSON.stringify(selectedSnapshot.galleryUrls ?? []);
+        JSON.stringify(selectedSnapshot.galleryUrls ?? []) &&
+      draftSnapshot.sortOrder === (selectedSnapshot.sortOrder ?? 0) &&
+      detailsEqual(draftSnapshot.details, selectedSnapshot.details ?? []);
     if (unchanged) return true;
 
     const formData = new FormData();
@@ -311,6 +400,8 @@ export function PortfolioListClient({
     formData.set("websiteUrl", draftSnapshot.websiteUrl);
     formData.set("heroImageUrl", draftSnapshot.heroImageUrl);
     formData.set("galleryUrls", JSON.stringify(draftSnapshot.galleryUrls));
+    formData.set("sortOrder", String(draftSnapshot.sortOrder));
+    formData.set("details", JSON.stringify(draftSnapshot.details));
 
     const result = await updatePortfolioItem(formData);
     if (!result.ok) {
@@ -421,6 +512,64 @@ export function PortfolioListClient({
     setDraft((prev) => (prev ? { ...prev, heroImageUrl } : prev));
   }
 
+  function updateDetailRow(index: number, patch: Partial<PortfolioDetailRow>) {
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const details = prev.details.map((row, i) => (i === index ? { ...row, ...patch } : row));
+      return { ...prev, details };
+    });
+  }
+
+  function addDetailRow() {
+    setDraft((prev) =>
+      prev ? { ...prev, details: [...prev.details, { label: "", value: "" }] } : prev
+    );
+  }
+
+  function removeDetailRow(index: number) {
+    setDraft((prev) =>
+      prev ? { ...prev, details: prev.details.filter((_, i) => i !== index) } : prev
+    );
+  }
+
+  function renderDetailsEditor() {
+    const rows = draft?.details ?? [];
+    return (
+      <div className="space-y-2">
+        {rows.map((row, index) => (
+          <div key={index} className="flex items-start gap-2">
+            <Input
+              value={row.label}
+              placeholder="Label (e.g. Client)"
+              className="h-9 flex-1 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDetailRow(index, { label: e.target.value })}
+            />
+            <Input
+              value={row.value}
+              placeholder="Value"
+              className="h-9 flex-[1.4] border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) => updateDetailRow(index, { value: e.target.value })}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground shrink-0"
+              onClick={() => removeDetailRow(index)}
+              aria-label="Remove detail row"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={addDetailRow}>
+          <Plus className="size-3.5" />
+          Add detail
+        </Button>
+      </div>
+    );
+  }
+
   function handleAIEdit(message: string) {
     setError(message);
     window.setTimeout(() => setError((prev) => (prev === message ? null : prev)), 3200);
@@ -476,6 +625,20 @@ export function PortfolioListClient({
               }
             />
           </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Sort order">
+            <Input
+              type="number"
+              value={draft.sortOrder}
+              className="h-9 border-black/8 bg-[#f7f7f7] text-[13px]"
+              onChange={(e) =>
+                setDraft((prev) =>
+                  prev
+                    ? { ...prev, sortOrder: Number.parseInt(e.target.value, 10) || 0 }
+                    : prev
+                )
+              }
+            />
+          </ContentFullViewPanelField>
           <ContentFullViewPanelField label="Hero image">
             <MediaImagePicker
               value={draft.heroImageUrl}
@@ -483,6 +646,17 @@ export function PortfolioListClient({
               placeholder="Choose hero image"
               onChange={updateHeroImage}
             />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Gallery">
+            <MediaGalleryPicker
+              value={draft.galleryUrls}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </ContentFullViewPanelField>
+          <ContentFullViewPanelField label="Details">
+            {renderDetailsEditor()}
           </ContentFullViewPanelField>
         </ContentFullViewPanelSection>
       </div>
@@ -522,6 +696,28 @@ export function PortfolioListClient({
               className="prose-premium-canvas"
               placeholder="press / to add text, images, and more"
             />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              Gallery
+            </h3>
+            <MediaGalleryPicker
+              value={draft?.galleryUrls ?? []}
+              onChange={(galleryUrls) =>
+                setDraft((prev) => (prev ? { ...prev, galleryUrls } : prev))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+              Details
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              Optional label / value rows (Client, Year, Role, Tools — any labels).
+            </p>
+            {renderDetailsEditor()}
           </div>
 
           {error ? <p className="text-destructive text-xs">{error}</p> : null}
@@ -638,6 +834,31 @@ export function PortfolioListClient({
               }
             />
           </div>
+          <div className="grid grid-cols-[140px_1fr] items-start gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 pt-1 text-sm">
+              <CircleDot className="size-3.5" />
+              Details
+            </label>
+            {renderDetailsEditor()}
+          </div>
+          <div className="grid grid-cols-[140px_1fr] items-center gap-4 rounded-md px-2 py-1.5">
+            <label className="text-muted-foreground flex items-center gap-2 text-sm">
+              <CircleDot className="size-3.5" />
+              Sort order
+            </label>
+            <Input
+              type="number"
+              value={draft?.sortOrder ?? 0}
+              className="h-8 border-0 bg-transparent px-0 focus-visible:ring-0"
+              onChange={(e) =>
+                setDraft((prev) =>
+                  prev
+                    ? { ...prev, sortOrder: Number.parseInt(e.target.value, 10) || 0 }
+                    : prev
+                )
+              }
+            />
+          </div>
         </div>
 
         {error ? <p className="text-destructive text-xs">{error}</p> : null}
@@ -660,9 +881,7 @@ export function PortfolioListClient({
           entityType: "portfolioItem",
           entityId: selected.id,
           title: draft?.title ?? selected.title,
-          content: [draft?.summary ?? "", draft?.content ?? "", draft?.websiteUrl ?? ""]
-            .filter(Boolean)
-            .join("\n\n"),
+          content: [draft?.summary ?? "", draft?.content ?? ""].filter(Boolean).join("\n\n"),
         }}
       >
         <div className="mx-auto w-full max-w-4xl">
@@ -763,8 +982,28 @@ export function PortfolioListClient({
                       className={cn(
                         "cursor-pointer",
                         activeIndex === idx && "bg-muted/60",
-                        selectedId === item.id && "bg-muted"
+                        selectedId === item.id && "bg-muted",
+                        dragOverId === item.id && draggedId !== item.id && "bg-primary/10",
+                        draggedId === item.id && "opacity-55"
                       )}
+                        onDragOver={(event) => {
+                          event.preventDefault(); // allow drop
+                          if (draggedId) event.dataTransfer.dropEffect = "move";
+                          if (dragOverId !== item.id) setDragOverId(item.id);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+
+                          const from = event.dataTransfer.getData("text/plain") || draggedId;
+                          if (!from) return;
+
+                          const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                          const insertAfter =
+                            event.clientY > rect.top + rect.height / 2;
+
+                          void handlePortfolioReorder(from, item.id, insertAfter);
+                        }}
                       onClick={() =>
                         schedulePreview(() => selectItemPreview(item.id, idx))
                       }
@@ -773,7 +1012,72 @@ export function PortfolioListClient({
                         openFull(() => openItemFullView(item));
                       }}
                     >
-                      <TableCell className="px-5 py-3 font-medium">{item.title}</TableCell>
+                      <TableCell className="px-5 py-3 font-medium">
+                        <div
+                          draggable
+                          aria-label={`Reorder ${item.title}`}
+                          className={cn(
+                            "flex items-center gap-2",
+                            "cursor-grab text-muted-foreground hover:text-foreground",
+                            draggedId === item.id && "cursor-grabbing"
+                          )}
+                          onDragStart={(event) => {
+                            event.dataTransfer.effectAllowed = "move";
+                            event.dataTransfer.setData("text/plain", item.id);
+                            setDraggedId(item.id);
+                            setDragOverId(item.id);
+
+                            // Better drag preview than the default "ghost" in all browsers.
+                            // We clone the visible title row content and anchor the preview center.
+                            const node = event.currentTarget as HTMLElement;
+                            const dragImg = node.cloneNode(true) as HTMLElement;
+                            dragImg.style.position = "absolute";
+                            dragImg.style.top = "-1000px";
+                            dragImg.style.left = "-1000px";
+                            dragImg.style.pointerEvents = "none";
+                            dragImg.style.background = "rgba(255,255,255,0.95)";
+                            dragImg.style.padding = "6px 10px";
+                            dragImg.style.borderRadius = "10px";
+                            dragImg.style.boxShadow = "0 8px 28px rgba(0,0,0,0.15)";
+                            dragImg.style.width = `${node.offsetWidth}px`;
+
+                            document.body.appendChild(dragImg);
+                            const x = Math.round(dragImg.offsetWidth / 2);
+                            const y = Math.round(dragImg.offsetHeight / 2);
+                            event.dataTransfer.setDragImage(dragImg, x, y);
+                            window.setTimeout(() => {
+                              dragImg.remove();
+                            }, 0);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedId(null);
+                            setDragOverId(null);
+                          }}
+                          onDragOver={(event) => {
+                            event.preventDefault(); // allow drop
+                            event.dataTransfer.dropEffect = "move";
+                            if (dragOverId !== item.id) setDragOverId(item.id);
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            const from =
+                              event.dataTransfer.getData("text/plain") || draggedId;
+                            if (!from) return;
+                            const tr = (event.currentTarget as HTMLElement).closest("tr");
+                            const rect = tr?.getBoundingClientRect();
+                            const insertAfter = rect
+                              ? event.clientY > rect.top + rect.height / 2
+                              : true;
+
+                            void handlePortfolioReorder(from, item.id, insertAfter);
+                          }}
+                        >
+                          <GripVertical className="size-4" />
+                          <p className="truncate text-foreground">{item.title}</p>
+                        </div>
+                      </TableCell>
                       <TableCell className="px-5 py-3">
                         <span className={cn("inline-flex rounded-full px-4 py-1 text-sm", statusClass(status))}>
                           {formatStatus(status)}

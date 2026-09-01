@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
-import { ImageIcon, Loader2, Upload } from "lucide-react";
+import { FileVideo, Loader2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -23,36 +22,27 @@ type MediaPickerRow = {
   mimeType: string;
 };
 
-type EditorMediaPickerProps = {
+type EditorVideoPickerProps = {
   editor: Editor | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** When set, choosing an image replaces the image at this doc position instead of inserting. */
-  replacePos?: number | null;
 };
 
-export function EditorMediaPicker({
-  editor,
-  open,
-  onOpenChange,
-  replacePos = null,
-}: EditorMediaPickerProps) {
+export function EditorVideoPicker({ editor, open, onOpenChange }: EditorVideoPickerProps) {
   const [items, setItems] = useState<MediaPickerRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [urlDraft, setUrlDraft] = useState("");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       setError(null);
-      setUrlDraft("");
       return;
     }
     setLoading(true);
     setError(null);
-    void fetch("/api/media/assets")
+    void fetch("/api/media/assets?scope=videos")
       .then(async (res) => {
         if (!res.ok) throw new Error("Could not load media library.");
         const data = (await res.json()) as { items?: MediaPickerRow[] };
@@ -65,34 +55,27 @@ export function EditorMediaPicker({
       .finally(() => setLoading(false));
   }, [open]);
 
-  const insertMedia = useCallback(
-    (src: string, alt?: string | null) => {
+  const insertLocalVideo = useCallback(
+    (src: string, title?: string | null) => {
       if (!editor || !src.trim()) return;
-      const trimmed = src.trim();
-      const altValue = alt?.trim() || undefined;
-
-      if (typeof replacePos === "number") {
-        const node = editor.state.doc.nodeAt(replacePos);
-        if (node?.type.name === "image") {
-          editor
-            .chain()
-            .focus()
-            .setNodeSelection(replacePos)
-            .updateAttributes("image", { src: trimmed, alt: altValue ?? null })
-            .run();
-          onOpenChange(false);
-          return;
-        }
-      }
-
-      editor.chain().focus().setImage({ src: trimmed, alt: altValue }).run();
+      editor
+        .chain()
+        .focus()
+        .setEditorVideo({ src: src.trim(), title: title?.trim() || null })
+        .run();
       onOpenChange(false);
     },
-    [editor, onOpenChange, replacePos]
+    [editor, onOpenChange]
   );
 
   async function handleUpload(file: File | undefined) {
     if (!file) return;
+    const isVideo =
+      file.type.startsWith("video/") || /\.(mp4|webm|ogg|mov|m4v|avi|mkv)$/i.test(file.name);
+    if (!isVideo) {
+      setError("Please choose a video file.");
+      return;
+    }
     setUploading(true);
     setError(null);
     try {
@@ -101,7 +84,7 @@ export function EditorMediaPicker({
       const res = await fetch("/api/media/upload", { method: "POST", body: fd });
       const data = (await res.json()) as {
         ok?: boolean;
-        items?: Array<{ url: string; altText: string | null; title: string }>;
+        items?: Array<{ url: string; altText: string | null; title: string; mimeType?: string }>;
         error?: string;
       };
       if (!res.ok || !data.ok || !data.items?.[0]?.url) {
@@ -109,7 +92,17 @@ export function EditorMediaPicker({
         return;
       }
       const row = data.items[0];
-      insertMedia(row.url, row.altText ?? row.title);
+      insertLocalVideo(row.url, row.altText ?? row.title);
+      setItems((prev) => [
+        {
+          id: row.url,
+          url: row.url,
+          title: row.title,
+          altText: row.altText,
+          mimeType: row.mimeType ?? file.type,
+        },
+        ...prev,
+      ]);
     } catch {
       setError("Upload failed.");
     } finally {
@@ -118,24 +111,16 @@ export function EditorMediaPicker({
     }
   }
 
-  function submitUrl() {
-    const u = urlDraft.trim();
-    if (!u) return;
-    insertMedia(u);
-  }
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-md">
         <SheetHeader className="border-border shrink-0 border-b px-4 py-4">
           <SheetTitle className="flex items-center gap-2">
-            <ImageIcon className="size-4 opacity-70" />
-            {typeof replacePos === "number" ? "Replace image" : "Insert image"}
+            <FileVideo className="size-4 opacity-70" />
+            Insert video
           </SheetTitle>
           <SheetDescription>
-            {typeof replacePos === "number"
-              ? "Pick a new image from your library, upload one, or paste a URL."
-              : "Upload a file or choose from your media library. You can also paste a URL below."}
+            Upload a video to your server or pick one from the media library. For YouTube, use / → YouTube in the editor.
           </SheetDescription>
         </SheetHeader>
 
@@ -144,7 +129,7 @@ export function EditorMediaPicker({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="video/*,.mp4,.webm,.ogg,.mov,.m4v"
               className="hidden"
               onChange={(e) => void handleUpload(e.target.files?.[0])}
             />
@@ -157,7 +142,7 @@ export function EditorMediaPicker({
               onClick={() => fileRef.current?.click()}
             >
               {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-              Upload image
+              Upload video
             </Button>
           </div>
 
@@ -165,7 +150,7 @@ export function EditorMediaPicker({
 
           <div className="min-h-0 flex-1 overflow-hidden">
             <p className="text-muted-foreground mb-2 text-[11px] font-medium tracking-wide uppercase">
-              Library
+              Video library
             </p>
             <div className="max-h-[min(52vh,420px)] overflow-y-auto pr-1">
               {loading ? (
@@ -174,9 +159,11 @@ export function EditorMediaPicker({
                   Loading…
                 </div>
               ) : items.length === 0 ? (
-                <p className="text-muted-foreground py-6 text-sm">No images in the library yet. Upload one above.</p>
+                <p className="text-muted-foreground py-6 text-sm">
+                  No videos in the library yet. Upload one above.
+                </p>
               ) : (
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {items.map((item) => (
                     <button
                       key={item.id}
@@ -184,43 +171,25 @@ export function EditorMediaPicker({
                       disabled={!editor}
                       title={item.title}
                       className={cn(
-                        "border-border bg-muted/30 hover:bg-muted/60 focus-visible:ring-ring relative aspect-square overflow-hidden rounded-md border transition-colors",
+                        "border-border bg-muted/30 hover:bg-muted/60 focus-visible:ring-ring relative aspect-video overflow-hidden rounded-md border transition-colors",
                         "focus-visible:ring-2 focus-visible:outline-none"
                       )}
-                        onClick={() => insertMedia(item.url, item.altText ?? item.title)}
+                      onClick={() => insertLocalVideo(item.url, item.altText ?? item.title)}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <video
                         src={item.url}
-                        alt=""
                         className="size-full object-cover"
-                        loading="lazy"
+                        muted
+                        playsInline
+                        preload="metadata"
                       />
+                      <span className="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent p-2">
+                        <span className="truncate text-left text-[11px] text-white">{item.title}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div className="border-border shrink-0 space-y-2 border-t pt-4">
-            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">Image URL</p>
-            <div className="flex gap-2">
-              <Input
-                value={urlDraft}
-                onChange={(e) => setUrlDraft(e.target.value)}
-                placeholder="https://…"
-                className="text-sm"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    submitUrl();
-                  }
-                }}
-              />
-              <Button type="button" size="sm" variant="secondary" disabled={!editor} onClick={submitUrl}>
-                {typeof replacePos === "number" ? "Replace" : "Insert"}
-              </Button>
             </div>
           </div>
         </div>

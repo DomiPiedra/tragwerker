@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { ProjectStatus } from "@/generated/prisma/enums";
 import { logActivity } from "@/lib/activity-log";
 import { requireEditorOrAdmin } from "@/lib/auth";
+import {
+  normalizePortfolioDetails,
+  parsePortfolioDetails,
+  type PortfolioDetailRow,
+} from "@/lib/portfolio/details";
 import { prisma } from "@/lib/prisma";
 import { scheduleContentSeoGeneration } from "@/lib/seo/server";
 
@@ -50,6 +55,11 @@ function parseGalleryUrls(raw: string | null | undefined): string[] {
   }
 }
 
+function parseSortOrder(raw: string | null | undefined): number {
+  const n = Number.parseInt(raw?.trim() ?? "", 10);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function serializePortfolioItem(item: {
   id: string;
   title: string;
@@ -60,6 +70,8 @@ function serializePortfolioItem(item: {
   websiteUrl: string | null;
   heroImageUrl: string | null;
   galleryUrls: string[];
+  sortOrder: number;
+  details: unknown;
   updatedAt: Date;
   createdAt: Date;
 }) {
@@ -73,9 +85,20 @@ function serializePortfolioItem(item: {
     websiteUrl: item.websiteUrl,
     heroImageUrl: item.heroImageUrl,
     galleryUrls: item.galleryUrls,
+    sortOrder: item.sortOrder,
+    details: normalizePortfolioDetails(item.details),
     updatedAt: item.updatedAt.toISOString(),
     createdAt: item.createdAt.toISOString(),
   };
+}
+
+function revalidatePortfolioPaths(slug: string, previousSlug?: string) {
+  revalidatePath("/");
+  revalidatePath("/portfolio");
+  revalidatePath(`/work/${slug}`);
+  if (previousSlug && previousSlug !== slug) {
+    revalidatePath(`/work/${previousSlug}`);
+  }
 }
 
 export async function createPortfolioQuick() {
@@ -93,6 +116,9 @@ export async function createPortfolioQuick() {
     candidate = `${baseSlug}-${n + 2}`;
   }
 
+  const max = await prisma.portfolioItem.aggregate({ _max: { sortOrder: true } });
+  const sortOrder = (max._max.sortOrder ?? 0) + 1;
+
   const item = await prisma.portfolioItem.create({
     data: {
       title: baseTitle,
@@ -103,6 +129,8 @@ export async function createPortfolioQuick() {
       websiteUrl: null,
       heroImageUrl: null,
       galleryUrls: [],
+      sortOrder,
+      details: [],
     },
   });
 
@@ -114,15 +142,50 @@ export async function createPortfolioQuick() {
     details: "Quick-created from portfolio list",
   });
 
-  revalidatePath("/");
-  revalidatePath("/portfolio");
-
+  revalidatePortfolioPaths(item.slug);
   scheduleContentSeoGeneration("portfolioItem", item.id);
 
   return {
     ok: true as const,
     item: serializePortfolioItem(item),
   };
+}
+
+export async function reorderPortfolioItems(orderedIds: string[]) {
+  await requireEditorOrAdmin();
+  const unique = Array.from(new Set(orderedIds)).slice(0, 500);
+  if (unique.length === 0) return { ok: true as const };
+
+  const existing = await prisma.portfolioItem.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, slug: true },
+  });
+  const existingIds = new Set(existing.map((r) => r.id));
+  const ids = unique.filter((id) => existingIds.has(id));
+
+  if (ids.length === 0) return { ok: true as const };
+
+  await prisma.$transaction(
+    ids.map((id, sortOrder) =>
+      prisma.portfolioItem.update({
+        where: { id },
+        data: { sortOrder },
+      })
+    )
+  );
+
+  await logActivity({
+    entityType: "portfolioItem",
+    entityId: ids[0] ?? "bulk",
+    action: "reordered",
+    title: "Portfolio order updated",
+    details: `Reordered ${ids.length} portfolio items`,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/portfolio");
+
+  return { ok: true as const, reordered: ids.length };
 }
 
 export async function updatePortfolioItem(formData: FormData) {
@@ -136,6 +199,8 @@ export async function updatePortfolioItem(formData: FormData) {
   const websiteUrlRaw = formData.get("websiteUrl")?.toString();
   const heroImageUrlRaw = formData.get("heroImageUrl")?.toString();
   const galleryUrlsRaw = formData.get("galleryUrls")?.toString();
+  const detailsRaw = formData.get("details")?.toString();
+  const sortOrderRaw = formData.get("sortOrder")?.toString();
 
   if (!id) return { ok: false as const, error: "Missing item id." };
   if (!title) return { ok: false as const, error: "Title is required." };
@@ -151,6 +216,8 @@ export async function updatePortfolioItem(formData: FormData) {
       websiteUrl: true,
       heroImageUrl: true,
       galleryUrls: true,
+      sortOrder: true,
+      details: true,
     },
   });
 
@@ -165,6 +232,8 @@ export async function updatePortfolioItem(formData: FormData) {
     if (existing) return { ok: false as const, error: "Slug already exists." };
   }
 
+  const details: PortfolioDetailRow[] = parsePortfolioDetails(detailsRaw);
+
   const next = {
     title,
     slug,
@@ -174,6 +243,8 @@ export async function updatePortfolioItem(formData: FormData) {
     websiteUrl: parseOptionalUrl(websiteUrlRaw),
     heroImageUrl: parseOptionalUrl(heroImageUrlRaw),
     galleryUrls: parseGalleryUrls(galleryUrlsRaw),
+    sortOrder: parseSortOrder(sortOrderRaw),
+    details,
   };
 
   const item = await prisma.portfolioItem.update({
@@ -181,6 +252,7 @@ export async function updatePortfolioItem(formData: FormData) {
     data: next,
   });
 
+  const currentDetails = normalizePortfolioDetails(current.details);
   const changedFields: string[] = [];
   if (current.title !== item.title) changedFields.push("title");
   if (current.slug !== item.slug) changedFields.push("slug");
@@ -191,6 +263,10 @@ export async function updatePortfolioItem(formData: FormData) {
   if ((current.heroImageUrl ?? "") !== (item.heroImageUrl ?? "")) changedFields.push("heroImageUrl");
   if (JSON.stringify(current.galleryUrls) !== JSON.stringify(item.galleryUrls)) {
     changedFields.push("galleryUrls");
+  }
+  if (current.sortOrder !== item.sortOrder) changedFields.push("sortOrder");
+  if (JSON.stringify(currentDetails) !== JSON.stringify(normalizePortfolioDetails(item.details))) {
+    changedFields.push("details");
   }
 
   await logActivity({
@@ -204,9 +280,7 @@ export async function updatePortfolioItem(formData: FormData) {
         : "Updated from portfolio editor",
   });
 
-  revalidatePath("/");
-  revalidatePath("/portfolio");
-
+  revalidatePortfolioPaths(item.slug, current.slug);
   scheduleContentSeoGeneration("portfolioItem", item.id);
 
   return {
@@ -221,7 +295,7 @@ export async function deletePortfolioItem(id: string) {
 
   const existing = await prisma.portfolioItem.findUnique({
     where: { id },
-    select: { title: true },
+    select: { title: true, slug: true },
   });
 
   await prisma.portfolioItem.delete({ where: { id } });
@@ -234,7 +308,10 @@ export async function deletePortfolioItem(id: string) {
     details: "Removed from portfolio list",
   });
 
-  revalidatePath("/");
-  revalidatePath("/portfolio");
+  if (existing?.slug) revalidatePortfolioPaths(existing.slug);
+  else {
+    revalidatePath("/");
+    revalidatePath("/portfolio");
+  }
   return { ok: true as const };
 }

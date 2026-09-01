@@ -13,23 +13,24 @@ import Suggestion from "@tiptap/suggestion";
 import type { Editor } from "@tiptap/react";
 import { Extension, ReactRenderer } from "@tiptap/react";
 import { motion } from "framer-motion";
-import { isValidYoutubeUrl } from "@tiptap/extension-youtube";
 import {
   Columns2,
   Code2,
+  FileVideo,
   Heading1,
   Heading2,
   Image as ImageIcon,
   List,
+  Play,
   Quote,
   Sparkles,
-  Video,
 } from "lucide-react";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 
+import { isValidPortfolioYoutubeUrl } from "@/lib/portfolio/youtube";
 import { cn } from "@/lib/utils";
 
-import { EDITOR_OPEN_MEDIA_PICKER_EVENT } from "./editor-bridge";
+import { EDITOR_OPEN_MEDIA_PICKER_EVENT, EDITOR_OPEN_VIDEO_PICKER_EVENT } from "./editor-bridge";
 
 type SlashItem = {
   title: string;
@@ -50,20 +51,48 @@ type SlashMenuHandle = {
 
 const GENERATING_LABEL = "Generating…";
 
+type PromptKind = "ai" | "youtube";
+
 const SlashMenu = forwardRef<
   SlashMenuHandle,
   {
     items: SlashItem[];
     command: (item: SlashItem) => void;
     onPromptSubmit?: (prompt: string) => Promise<boolean | void> | boolean | void;
+    onYoutubeSubmit?: (url: string) => boolean | void;
+    onDismiss?: () => void;
   }
->(function SlashMenu({ items, command, onPromptSubmit = async () => true }, ref) {
+>(function SlashMenu(
+  { items, command, onPromptSubmit = async () => true, onYoutubeSubmit = () => false, onDismiss },
+  ref
+) {
   const [selected, setSelected] = useState(0);
-  const [isPrompting, setIsPrompting] = useState(false);
+  const [promptKind, setPromptKind] = useState<PromptKind | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const promptInputRef = useRef<HTMLInputElement | null>(null);
   const mountedRef = useRef(true);
+
+  const isPrompting = promptKind !== null;
+
+  function openPrompt(kind: PromptKind) {
+    setPromptKind(kind);
+    setPromptValue("");
+    setYoutubeError(null);
+  }
+
+  function closePrompt() {
+    setPromptKind(null);
+    setPromptValue("");
+    setYoutubeError(null);
+  }
+
+  function promptKindForItem(title: string): PromptKind | null {
+    if (title === "AI Prompt") return "ai";
+    if (title === "YouTube") return "youtube";
+    return null;
+  }
 
   useEffect(() => {
     mountedRef.current = true;
@@ -86,22 +115,38 @@ const SlashMenu = forwardRef<
 
   const submitPrompt = useCallback(async () => {
     const value = promptValue.trim();
-    if (!value || isGenerating) return;
+    if (!value || isGenerating || !promptKind) return;
+
+    if (promptKind === "youtube") {
+      if (!isValidPortfolioYoutubeUrl(value)) {
+        setYoutubeError("Enter a valid YouTube URL.");
+        return;
+      }
+      const ok = onYoutubeSubmit(value);
+      if (ok) {
+        closePrompt();
+        onDismiss?.();
+      }
+      return;
+    }
+
     setIsGenerating(true);
     try {
       await Promise.resolve(onPromptSubmit(value));
+      closePrompt();
+      onDismiss?.();
     } finally {
       if (!mountedRef.current) return;
       setIsGenerating(false);
     }
-  }, [promptValue, isGenerating, onPromptSubmit]);
+  }, [promptValue, isGenerating, onDismiss, onPromptSubmit, onYoutubeSubmit, promptKind]);
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
       if (isPrompting) {
         if (event.key === "Escape") {
           event.preventDefault();
-          if (!isGenerating) setIsPrompting(false);
+          if (!isGenerating) closePrompt();
           return true;
         }
         if (event.key === "Enter") {
@@ -126,8 +171,9 @@ const SlashMenu = forwardRef<
         event.preventDefault();
         const item = items[selected];
         if (!item) return true;
-        if (item.title === "AI Prompt") {
-          setIsPrompting(true);
+        const kind = promptKindForItem(item.title);
+        if (kind) {
+          openPrompt(kind);
           return true;
         }
         command(item);
@@ -141,9 +187,11 @@ const SlashMenu = forwardRef<
   if (items.length === 0) return null;
 
   if (isPrompting) {
+    const isYoutube = promptKind === "youtube";
+
     return (
       <div className="relative w-80 rounded-xl">
-        {isGenerating ? (
+        {!isYoutube && isGenerating ? (
           <>
             <div
               aria-hidden
@@ -177,15 +225,20 @@ const SlashMenu = forwardRef<
         <div
           className={cn(
             "relative rounded-[10px] border border-zinc-200/70 bg-white/95 p-2 shadow-xl backdrop-blur-md dark:border-zinc-700/70 dark:bg-zinc-900/95",
-            isGenerating && "border-zinc-200/40 shadow-none dark:border-zinc-700/50"
+            !isYoutube && isGenerating && "border-zinc-200/40 shadow-none dark:border-zinc-700/50"
           )}
         >
-          <p className="mb-2 text-xs font-medium text-zinc-500">AI Prompt</p>
+          <p className="mb-2 text-xs font-medium text-zinc-500">
+            {isYoutube ? "YouTube" : "AI Prompt"}
+          </p>
           <input
             ref={promptInputRef}
             value={promptValue}
             disabled={isGenerating}
-            onChange={(event) => setPromptValue(event.target.value)}
+            onChange={(event) => {
+              setPromptValue(event.target.value);
+              if (youtubeError) setYoutubeError(null);
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
@@ -194,13 +247,16 @@ const SlashMenu = forwardRef<
               if (event.key === "Escape") {
                 event.preventDefault();
                 if (isGenerating) return;
-                setIsPrompting(false);
+                closePrompt();
               }
             }}
-            placeholder="What should AI write?"
+            placeholder={
+              isYoutube ? "https://www.youtube.com/watch?v=…" : "What should AI write?"
+            }
             className="mb-2 h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-sm outline-none focus:border-zinc-300 disabled:opacity-70 dark:border-zinc-700 dark:bg-zinc-800"
           />
-          {isGenerating ? (
+          {youtubeError ? <p className="text-destructive mb-2 text-xs">{youtubeError}</p> : null}
+          {!isYoutube && isGenerating ? (
             <div className="mb-3 flex min-h-[1.25rem] items-center justify-center gap-[1px] py-1">
               {GENERATING_LABEL.split("").map((ch, i) => (
                 <motion.span
@@ -227,7 +283,7 @@ const SlashMenu = forwardRef<
               <button
                 type="button"
                 className="rounded-md px-2.5 py-1 text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                onClick={() => setIsPrompting(false)}
+                onClick={closePrompt}
               >
                 Cancel
               </button>
@@ -236,7 +292,7 @@ const SlashMenu = forwardRef<
                 className="rounded-md bg-zinc-900 px-2.5 py-1 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900"
                 onClick={() => void submitPrompt()}
               >
-                Generate
+                {isYoutube ? "Embed" : "Generate"}
               </button>
             </div>
           ) : null}
@@ -259,8 +315,9 @@ const SlashMenu = forwardRef<
             )}
             onMouseEnter={() => setSelected(index)}
             onClick={() => {
-              if (item.title === "AI Prompt") {
-                setIsPrompting(true);
+              const kind = promptKindForItem(item.title);
+              if (kind) {
+                openPrompt(kind);
                 return;
               }
               command(item);
@@ -365,18 +422,20 @@ export const SlashCommand = Extension.create<{
             },
             {
               title: "Video",
-              description: "Embed a YouTube video",
-              icon: Video,
+              description: "Upload or choose from media library",
+              icon: FileVideo,
               command: ({ editor, range }) => {
-                const url = window.prompt("Paste a YouTube URL");
-                if (!url?.trim()) return;
-                const trimmed = url.trim();
-                if (!isValidYoutubeUrl(trimmed)) {
-                  window.alert("That does not look like a valid YouTube link.");
-                  return;
-                }
-                editor.chain().focus().deleteRange(range).setYoutubeVideo({ src: trimmed }).run();
+                editor.chain().focus().deleteRange(range).run();
+                queueMicrotask(() => {
+                  window.dispatchEvent(new CustomEvent(EDITOR_OPEN_VIDEO_PICKER_EVENT));
+                });
               },
+            },
+            {
+              title: "YouTube",
+              description: "Embed a YouTube video",
+              icon: Play,
+              command: () => {},
             },
             {
               title: "AI Prompt",
@@ -406,6 +465,16 @@ export const SlashCommand = Extension.create<{
               );
             };
 
+          const makeYoutubeSubmit =
+            () => (url: string) => {
+              if (!promptContext) return false;
+              const { editor, range } = promptContext;
+              const trimmed = url.trim();
+              if (!trimmed || !isValidPortfolioYoutubeUrl(trimmed)) return false;
+              editor.chain().focus().deleteRange(range).setYoutubeVideo({ src: trimmed }).run();
+              return true;
+            };
+
           return {
             onStart: (props) => {
               if (props.range) {
@@ -416,6 +485,8 @@ export const SlashCommand = Extension.create<{
                   items: props.items as SlashItem[],
                   command: (item: SlashItem) => props.command(item),
                   onPromptSubmit: makePromptSubmit(),
+                  onYoutubeSubmit: makeYoutubeSubmit(),
+                  onDismiss: () => popup?.[0]?.hide(),
                 },
                 editor: props.editor,
               });
@@ -439,6 +510,8 @@ export const SlashCommand = Extension.create<{
                 items: props.items as SlashItem[],
                 command: (item: SlashItem) => props.command(item),
                 onPromptSubmit: makePromptSubmit(),
+                onYoutubeSubmit: makeYoutubeSubmit(),
+                onDismiss: () => popup?.[0]?.hide(),
               });
               if (props.clientRect) {
                 popup?.[0]?.setProps({

@@ -1,4 +1,5 @@
 import { ProjectStatus } from "@/generated/prisma/enums";
+import { normalizePortfolioDetails } from "@/lib/portfolio/details";
 import { prisma } from "@/lib/prisma";
 import { PortfolioListClient } from "./portfolio-list-client";
 
@@ -14,7 +15,9 @@ export default async function PortfolioPage({
   const initialIsFullPortfolioView =
     (Array.isArray(viewRaw) ? viewRaw[0] : viewRaw) === "full";
 
-  const items = await prisma.portfolioItem.findMany({ orderBy: { updatedAt: "desc" } });
+  const items = await prisma.portfolioItem.findMany({
+    orderBy: [{ sortOrder: "asc" }, { updatedAt: "desc" }],
+  });
   const serialized = items.map((item) => ({
     id: item.id,
     title: item.title,
@@ -25,6 +28,8 @@ export default async function PortfolioPage({
     websiteUrl: item.websiteUrl,
     heroImageUrl: item.heroImageUrl,
     galleryUrls: item.galleryUrls ?? [],
+    sortOrder: item.sortOrder ?? 0,
+    details: normalizePortfolioDetails(item.details),
     updatedAt: item.updatedAt.toISOString(),
     createdAt: item.createdAt.toISOString(),
   }));

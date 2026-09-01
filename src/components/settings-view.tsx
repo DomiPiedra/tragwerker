@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import type { ComponentType, FormEvent } from "react";
-import { Link2, Settings, ShieldUser, UserCircle2 } from "lucide-react";
+import { Link2, Puzzle, Settings, ShieldUser, UserCircle2 } from "lucide-react";
 
+import { AnalyticsIntegrationsPanel } from "@/components/analytics-integrations-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
-export type SettingsSection = "me" | "general" | "links" | "users";
+export type SettingsSection = "me" | "general" | "links" | "users" | "integrations";
 
 export const settingsMenuItems: Array<{
   id: SettingsSection;
@@ -17,12 +18,19 @@ export const settingsMenuItems: Array<{
 }> = [
   { id: "me", label: "Account", icon: UserCircle2 },
   { id: "general", label: "Settings", icon: Settings },
+  { id: "integrations", label: "Integrations", icon: Puzzle },
   { id: "links", label: "Links", icon: Link2 },
   { id: "users", label: "Users", icon: ShieldUser },
 ];
 
 export function parseSettingsSection(value: string | null | undefined): SettingsSection {
-  if (value === "me" || value === "general" || value === "links" || value === "users") {
+  if (
+    value === "me" ||
+    value === "general" ||
+    value === "links" ||
+    value === "users" ||
+    value === "integrations"
+  ) {
     return value;
   }
   return "me";
@@ -51,6 +59,7 @@ type SettingsViewProps = {
 const sectionDescriptions: Record<SettingsSection, string> = {
   me: "Update your profile and password.",
   general: "Workspace preferences.",
+  integrations: "Connect Google Analytics and other services.",
   links: "External links used across the site.",
   users: "Manage who can access the CMS.",
 };
@@ -277,6 +286,8 @@ export function SettingsView({ section }: SettingsViewProps) {
           </div>
         </div>
       ) : null}
+
+      {section === "integrations" ? <AnalyticsIntegrationsPanel /> : null}
 
       {section === "links" ? (
         <div className="space-y-3">
