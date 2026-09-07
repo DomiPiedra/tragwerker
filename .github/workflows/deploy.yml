@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.TRAGWERKER_GITHUB_DEPLOY }}
+
+      - name: Trust server host key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo '[domiph.art]:55 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa9aTjpN7G3h+31/PdEci7JsJKShBiWU7kigfmIQgNv' >> ~/.ssh/known_hosts
+          echo '[holzheu-designs.de]:55 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOa9aTjpN7G3h+31/PdEci7JsJKShBiWU7kigfmIQgNv' >> ~/.ssh/known_hosts
+
+      - name: Sync files to server
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'node_modules/' \
+            --exclude '.next/' \
+            --exclude '.idea/' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude 'public/uploads/' \
+            -e 'ssh -p 55' \
+            ./ winitux-admin@domiph.art:/var/www/html/tragwerker/
+
+          if [ -d public/uploads ]; then
+            rsync -az \
+              -e 'ssh -p 55' \
+              public/uploads/ winitux-admin@domiph.art:/var/www/html/tragwerker/public/uploads/
+          fi
+
+      - name: Build and restart
+        run: |
+          ssh -p 55 winitux-admin@domiph.art \
+            'bash /var/www/html/tragwerker/scripts/deploy-remote.sh'
