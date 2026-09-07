@@ -11,11 +11,14 @@ export const dynamic = "force-dynamic";
 
 type PageProps = { searchParams?: Promise<{ q?: string }> };
 
-export const metadata: Metadata = buildStaticMetadata({
-  title: `Suche — ${SITE_NAME}`,
-  description: "Durchsuchen Sie Projekte, Team und Inhalte der Tragwerker Website.",
-  path: "/suche",
-});
+export const metadata: Metadata = {
+  ...buildStaticMetadata({
+    title: `Suche — ${SITE_NAME}`,
+    description: "Durchsuchen Sie Projekte, Team und Inhalte der Tragwerker Website.",
+    path: "/suche",
+  }),
+  robots: { index: false, follow: true },
+};
 
 export default async function SuchePage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
@@ -57,12 +60,12 @@ export default async function SuchePage({ searchParams }: PageProps) {
               <Link
                 key={`${result.type}-${result.href}-${result.title}`}
                 href={result.href}
-                className="block py-8 transition-opacity hover:opacity-70"
+                className="site-link-quiet block py-8"
               >
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-accent)]">{result.type}</p>
-                <h2 className="mt-2 font-site-serif text-2xl tracking-tight">{result.title}</h2>
+                <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">{result.type}</p>
+                <h2 className="mt-2 font-site-serif text-2xl tracking-[-0.02em]">{result.title}</h2>
                 {result.excerpt ? (
-                  <p className="mt-2 text-sm text-[var(--site-muted)]">{result.excerpt}</p>
+                  <p className="mt-2 font-site-sans text-sm font-extralight text-[var(--site-muted)]">{result.excerpt}</p>
                 ) : null}
               </Link>
             ))

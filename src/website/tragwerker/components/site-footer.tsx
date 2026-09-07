@@ -16,11 +16,11 @@ export function SiteFooter() {
       <div className="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <p className="font-site-serif text-3xl tracking-tight">{SITE_SHORT_NAME}</p>
-          <p className="mt-4 max-w-sm text-sm leading-relaxed text-[var(--site-muted)]">
+          <p className="mt-4 max-w-sm font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
             Ingenieurbüro für Tragwerksplanung und Prüfung in Germering bei München.
           </p>
         </div>
-        <div className="space-y-3 text-sm uppercase tracking-[0.16em] text-[var(--site-muted)]">
+        <div className="space-y-3 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
           <p className="text-[var(--site-ink)]">Leistungen</p>
           <Link href="/tragwerksplanung" className="block hover:text-[var(--site-ink)]">
             Tragwerksplanung
@@ -32,8 +32,8 @@ export function SiteFooter() {
             Projekte
           </Link>
         </div>
-        <div className="space-y-2 text-sm text-[var(--site-muted)]">
-          <p className="uppercase tracking-[0.16em] text-[var(--site-ink)]">Büro</p>
+        <div className="space-y-2 font-site-sans text-sm font-extralight text-[var(--site-muted)]">
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-ink)]">Büro</p>
           {addressLines.map((line) => (
             <p key={line}>{line}</p>
           ))}
@@ -45,7 +45,7 @@ export function SiteFooter() {
           </a>
         </div>
       </div>
-      <div className="mt-16 flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.2em] text-[var(--site-muted)]">
+      <div className="mt-16 flex flex-wrap items-center gap-4 border-t border-[var(--site-line)] pt-8 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
         <span>TW</span>
         <span>
           © {new Date().getFullYear()} {SITE_NAME}

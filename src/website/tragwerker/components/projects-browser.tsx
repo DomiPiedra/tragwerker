@@ -105,20 +105,20 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
             <button
               type="button"
               onClick={() => setViewMode("grid")}
-              className={`flex items-center gap-2 ${viewToggleClass(viewMode === "grid")}`}
+              className={`flex min-h-11 items-center gap-2 ${viewToggleClass(viewMode === "grid")}`}
               aria-pressed={viewMode === "grid"}
             >
-              <GridIcon className="size-3.5 shrink-0 md:size-4" />
-              Grid
+              <GridIcon className="size-4 shrink-0" />
+              Raster
             </button>
             <button
               type="button"
               onClick={() => setViewMode("list")}
-              className={`flex items-center gap-2 ${viewToggleClass(viewMode === "list")}`}
+              className={`flex min-h-11 items-center gap-2 ${viewToggleClass(viewMode === "list")}`}
               aria-pressed={viewMode === "list"}
             >
-              <ListIcon className="size-3.5 shrink-0 md:size-4" />
-              List
+              <ListIcon className="size-4 shrink-0" />
+              Liste
             </button>
           </div>
 
@@ -128,11 +128,11 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
               type="search"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search"
-              className="min-w-0 flex-1 border-0 bg-transparent py-1.5 font-site-sans text-base font-extralight text-[var(--site-ink)] outline-none placeholder:text-[var(--site-muted)] md:text-lg"
+              placeholder="Suchen"
+              className="min-w-0 flex-1 border-0 bg-transparent py-2 font-site-sans text-base font-extralight text-[var(--site-ink)] outline-none placeholder:text-[var(--site-muted)]"
             />
             <span
-              className="pb-1.5 font-site-sans text-lg font-extralight leading-none text-[var(--site-muted)] md:text-xl"
+              className="pb-2 font-site-sans text-lg font-extralight leading-none text-[var(--site-muted)]"
               aria-hidden
             >
               +
@@ -144,7 +144,7 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
           <button
             type="button"
             onClick={() => setActiveCategory(null)}
-            className={categoryClass(activeCategory === null)}
+            className={`flex min-h-11 items-center ${categoryClass(activeCategory === null)}`}
           >
             Alle
           </button>
@@ -153,7 +153,7 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
               key={category}
               type="button"
               onClick={() => setActiveCategory(category)}
-              className={categoryClass(activeCategory === category)}
+              className={`flex min-h-11 items-center ${categoryClass(activeCategory === category)}`}
             >
               {category}
             </button>
@@ -162,7 +162,7 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
       </div>
 
       {filtered.length === 0 ? (
-        <p className="font-site-sans text-sm font-extralight text-[var(--site-muted)] md:text-base">
+        <p className="font-site-sans text-base font-extralight text-[var(--site-muted)]">
           Keine Projekte gefunden.
         </p>
       ) : viewMode === "grid" ? (
@@ -170,7 +170,7 @@ export function ProjectsBrowser({ projects, categories, initialCategory }: Proje
           {featured ? <FeaturedProjectCard {...featured} /> : null}
 
           {rest.length > 0 ? (
-            <div className="grid gap-x-8 gap-y-12 md:grid-cols-2 lg:grid-cols-3 lg:gap-x-10 lg:gap-y-14">
+            <div className="grid gap-x-8 gap-y-8 md:grid-cols-2 lg:grid-cols-3 lg:gap-x-10">
               {rest.map((project) => (
                 <ProjectGridCard key={project.slug} {...project} />
               ))}

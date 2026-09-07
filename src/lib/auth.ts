@@ -119,7 +119,6 @@ export async function ensureBootstrapAdmin() {
     data: {
       username,
       displayName,
-      avatarUrl: null,
       role: UserRole.admin,
       passwordHash: await hashPassword(password),
     },

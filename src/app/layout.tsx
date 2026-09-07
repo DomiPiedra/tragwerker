@@ -2,14 +2,18 @@ import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 
-import { GlobalCommandBar } from "@/components/command/global-command-bar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getSiteBaseUrl, SITE_NAME } from "@/website/tragwerker/config";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Tragwerker",
-  description: "Ingenieurbüro für Tragwerksplanung und Prüfung",
+  metadataBase: new URL(getSiteBaseUrl()),
+  title: {
+    default: `${SITE_NAME} — Tragwerksplanung und Prüfung in Germering`,
+    template: "%s",
+  },
+  description: "Ingenieurbüro für Tragwerksplanung und baustatische Prüfung in Germering bei München.",
 };
 
 export default function RootLayout({

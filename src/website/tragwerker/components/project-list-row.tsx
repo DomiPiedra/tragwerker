@@ -61,7 +61,7 @@ export function ProjectListRow({
     hovering && typeof document !== "undefined"
       ? createPortal(
           <div
-            className="pointer-events-none fixed z-50 hidden overflow-hidden bg-[var(--site-line)] shadow-lg md:block relative"
+            className="pointer-events-none fixed z-50 hidden overflow-hidden bg-[var(--site-line)] md:block"
             style={{
               left: position.left,
               top: position.top,
@@ -89,7 +89,7 @@ export function ProjectListRow({
         onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="block truncate py-5 font-site-sans text-xl font-bold leading-snug tracking-[-0.02em] transition-opacity hover:opacity-80 md:py-6 md:text-2xl lg:text-[1.625rem]"
+        className="site-link-quiet block truncate py-5 font-site-sans text-xl font-normal leading-snug tracking-[-0.02em] md:py-6 md:text-2xl"
       >
         <span className="text-[var(--site-ink)]">{name}</span>
         {summary ? <span className="text-[var(--site-muted)]"> {summary}</span> : null}

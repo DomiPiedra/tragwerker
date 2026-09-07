@@ -27,6 +27,7 @@ export default async function ProjektePage({ searchParams }: PageProps) {
         placement="standalone"
         pageName="Projekte"
         headline="Unsere Arbeit wird sichtbar im Bauwerk."
+        intro="Hochbau, Infrastruktur und Bestandsertüchtigungen."
       />
 
       <ProjectsBrowser

@@ -48,22 +48,22 @@ export default async function ProjektDetailPage({ params }: PageProps) {
 
       <section className="site-container grid gap-10 border-t border-[var(--site-line)] py-12 md:grid-cols-2 md:py-20">
         <div>
-          <p className="text-xs uppercase tracking-[0.28em] text-[var(--site-accent)]">
+          <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
             {project.category}
           </p>
-          <p className="mt-6 text-sm uppercase tracking-[0.18em] text-[var(--site-muted)]">
+          <p className="mt-6 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
             {[project.period, project.location].filter(Boolean).join(" · ")}
           </p>
           {project.client ? (
-            <p className="mt-4 text-sm text-[var(--site-muted)]">
-              <span className="uppercase tracking-[0.16em] text-[var(--site-ink)]">Bauherr</span>
+            <p className="mt-4 font-site-sans text-sm font-extralight text-[var(--site-muted)]">
+              <span className="uppercase tracking-[0.2em] text-[var(--site-ink)]">Bauherr</span>
               <br />
               {project.client}
             </p>
           ) : null}
           {project.architect ? (
-            <p className="mt-4 text-sm text-[var(--site-muted)]">
-              <span className="uppercase tracking-[0.16em] text-[var(--site-ink)]">Architektur</span>
+            <p className="mt-4 font-site-sans text-sm font-extralight text-[var(--site-muted)]">
+              <span className="uppercase tracking-[0.2em] text-[var(--site-ink)]">Architektur</span>
               <br />
               {project.architect}
             </p>
@@ -82,7 +82,7 @@ export default async function ProjektDetailPage({ params }: PageProps) {
       </section>
 
       {project.description ? (
-        <section className="site-container max-w-3xl border-t border-[var(--site-line)] py-16">
+        <section className="site-container max-w-3xl border-t border-[var(--site-line)] py-16 md:py-24 lg:py-28">
           <SectionHeading eyebrow="Projekt" title="Projektbeschreibung" description={project.description} />
         </section>
       ) : null}
@@ -93,8 +93,8 @@ export default async function ProjektDetailPage({ params }: PageProps) {
           <div className="mt-10 grid gap-10 md:grid-cols-3">
             {Object.entries(technicalData).map(([key, values]) => (
               <div key={key}>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-accent)]">{key}</p>
-                <ul className="mt-4 space-y-2 text-sm text-[var(--site-muted)]">
+                <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">{key}</p>
+                <ul className="mt-4 space-y-2 font-site-sans text-sm font-extralight text-[var(--site-muted)]">
                   {values.map((v) => (
                     <li key={v}>{v}</li>
                   ))}

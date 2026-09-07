@@ -14,7 +14,7 @@ export const metadata: Metadata = buildStaticMetadata({
 function LegalBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="site-grid-span-6 md:site-grid-span-5">
-      <h2 className="font-site-sans text-sm font-bold uppercase tracking-[0.18em] text-[var(--site-ink)]">
+      <h2 className="font-site-sans text-xs font-normal uppercase tracking-[0.2em] text-[var(--site-ink)]">
         {title}
       </h2>
       <div className="mt-4 space-y-3 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">

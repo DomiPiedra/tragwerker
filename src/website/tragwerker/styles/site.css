@@ -1,30 +1,78 @@
 .tragwerker-site {
+  min-width: 0;
   --site-ink: #121212;
   --site-paper: #fafafa;
-  --site-muted: #636363;
+  --site-muted: #4e4e4e;
+  --site-kicker: #a3a3a0;
   --site-accent: #7a6b55;
-  --site-line: #e8e8e8;
+  --site-line: #dddcd8;
   --site-surface: #f0f0f0;
+  /* Hero stats rule — mockup exception, not a second brand accent. */
+  --site-hero-rule: #c4543a;
   --site-header-offset: 5.5rem;
+  --site-after-hero-y: 4rem;
   --site-grid-gap: 1rem;
+  --site-section-y: 5rem;
+  --site-container-pad: 2rem;
+  --site-label-size: 0.75rem;
+  --site-label-tracking: 0.2em;
+  --site-body-size: 1rem;
+  --site-ease: 200ms ease;
   background: var(--site-paper);
   color: var(--site-ink);
   font-family: var(--font-site-sans);
+  font-weight: 300;
+  overflow-x: clip;
 }
 
 .tragwerker-site .font-site-serif {
   font-family: var(--font-site-serif);
+  font-weight: 400;
 }
 
 .tragwerker-site .font-site-sans {
   font-family: var(--font-site-sans);
 }
 
+/* Override dashboard/globals heading + nav weight on the public site. */
+.tragwerker-site h1,
+.tragwerker-site h2,
+.tragwerker-site h3,
+.tragwerker-site h4 {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  text-wrap: wrap;
+}
+
+@media (min-width: 768px) {
+  .tragwerker-site h1,
+  .tragwerker-site h2,
+  .tragwerker-site h3,
+  .tragwerker-site h4 {
+    text-wrap: balance;
+  }
+}
+
+.tragwerker-site button,
+.tragwerker-site [role="button"],
+.tragwerker-site nav a,
+.tragwerker-site nav button,
+.tragwerker-site label {
+  font-weight: 200;
+}
+
 .tragwerker-site .site-container {
   margin-inline: auto;
   width: 100%;
+  min-width: 0;
   max-width: 1320px;
-  padding-inline: 2rem;
+  padding-inline: var(--site-container-pad);
+}
+
+@media (max-width: 379px) {
+  .tragwerker-site {
+    --site-container-pad: 1.25rem;
+  }
 }
 
 /* 8-column layout system */
@@ -61,12 +109,10 @@
 
 @media (min-width: 768px) {
   .tragwerker-site {
-    --site-header-offset: 6.25rem;
+    --site-header-offset: 6.5rem;
     --site-grid-gap: 1.5rem;
-  }
-
-  .tragwerker-site .site-container {
-    padding-inline: 3.5rem;
+    --site-section-y: 7rem;
+    --site-container-pad: 3.5rem;
   }
 
   .tragwerker-site .site-grid-span-2 {
@@ -97,15 +143,244 @@
 @media (min-width: 1024px) {
   .tragwerker-site {
     --site-grid-gap: 2rem;
-  }
-
-  .tragwerker-site .site-container {
-    padding-inline: 5rem;
+    --site-section-y: 8rem;
+    --site-container-pad: 5rem;
   }
 }
 
 @media (min-width: 1280px) {
-  .tragwerker-site .site-container {
-    padding-inline: 7rem;
+  .tragwerker-site {
+    --site-container-pad: 6rem;
+  }
+}
+
+.tragwerker-site .site-rich-text {
+  color: var(--site-muted);
+  font-size: var(--site-body-size);
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+/* Body copy at 300; keep uppercase labels at 200 via Tailwind font-extralight. */
+.tragwerker-site :is(p, div, li, span, a, dd).font-extralight.leading-relaxed,
+.tragwerker-site :is(p, div, li, span, a, dd).font-extralight.leading-snug,
+.tragwerker-site .text-base.font-extralight:not(.uppercase),
+.tragwerker-site .text-sm.font-extralight:not(.uppercase),
+.tragwerker-site .text-lg.font-extralight:not(.uppercase) {
+  font-weight: 300;
+}
+
+.tragwerker-site .site-rich-text :where(p, ul, ol) {
+  margin-block: 1em;
+}
+
+.tragwerker-site .site-rich-text :where(p:first-child, ul:first-child, ol:first-child) {
+  margin-block-start: 0;
+}
+
+.tragwerker-site .site-rich-text :where(p:last-child, ul:last-child, ol:last-child) {
+  margin-block-end: 0;
+}
+
+.tragwerker-site .site-rich-text :where(ul, ol) {
+  padding-inline-start: 1.25em;
+}
+
+.tragwerker-site .site-rich-text :where(a) {
+  color: var(--site-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.tragwerker-site .site-rich-text :where(strong) {
+  color: var(--site-ink);
+  font-weight: 400;
+}
+
+.tragwerker-site a:focus-visible,
+.tragwerker-site button:focus-visible,
+.tragwerker-site input:focus-visible {
+  outline: 1px solid var(--site-ink);
+  outline-offset: 4px;
+}
+
+.tragwerker-site .site-process-toc-glass {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 1rem;
+  background: rgba(250, 250, 250, 0.55);
+  box-shadow:
+    0 8px 32px rgba(18, 18, 18, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+.tragwerker-site .site-header-glass {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 9999px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.1) 46%,
+      rgba(255, 255, 255, 0.2) 100%
+    );
+  box-shadow:
+    0 12px 40px rgba(18, 18, 18, 0.12),
+    0 2px 18px rgba(255, 255, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 -1px 0 rgba(18, 18, 18, 0.06);
+  -webkit-backdrop-filter: blur(44px) saturate(1.85);
+  backdrop-filter: blur(44px) saturate(1.85);
+  transform: translateZ(0);
+}
+
+.tragwerker-site .site-header-glass::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.12) 34%,
+    transparent 62%
+  );
+}
+
+.tragwerker-site .site-header-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tragwerker-site .site-header-glass {
+    background: rgba(250, 250, 250, 0.94);
+    box-shadow:
+      0 8px 24px rgba(18, 18, 18, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .tragwerker-site .site-header-glass::before {
+    content: none;
+  }
+}
+
+.tragwerker-site .site-label-rule {
+  display: inline-block;
+  width: 0.75rem;
+  height: 1px;
+  margin-right: 0.7rem;
+  margin-bottom: 0.22em;
+  background: var(--site-accent);
+  vertical-align: middle;
+  animation: site-rule-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tragwerker-site .site-link {
+  color: var(--site-ink);
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0 1px;
+  transition:
+    background-size var(--site-ease),
+    color var(--site-ease);
+}
+
+.tragwerker-site .site-link:hover {
+  color: var(--site-accent);
+  background-size: 100% 1px;
+}
+
+.tragwerker-site .site-link-quiet {
+  color: inherit;
+  transition: color var(--site-ease);
+}
+
+.tragwerker-site .site-link-quiet:hover,
+.tragwerker-site a.site-link-quiet:hover * {
+  color: var(--site-accent);
+}
+
+.tragwerker-site .site-media-frame {
+  outline: 1px solid var(--site-line);
+  outline-offset: -1px;
+}
+
+.tragwerker-site figcaption {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--site-line);
+}
+
+.tragwerker-site .site-media-reveal {
+  overflow: hidden;
+}
+
+.tragwerker-site .site-media-reveal img {
+  animation: site-media-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes site-rule-in {
+  from {
+    width: 0;
+  }
+  to {
+    width: 0.75rem;
+  }
+}
+
+@keyframes site-media-in {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes site-hero-in {
+  0% {
+    transform: scale(1.06);
+  }
+  8% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
+  }
+}
+
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .tragwerker-site .site-media-kenburns img {
+    animation: site-hero-in 12s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tragwerker-site *,
+  .tragwerker-site *::before,
+  .tragwerker-site *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .tragwerker-site .site-media-reveal img,
+  .tragwerker-site .site-media-kenburns img {
+    animation: none !important;
+    transform: none;
+  }
+
+  .tragwerker-site .site-label-rule {
+    animation: none !important;
+    width: 0.75rem;
   }
 }

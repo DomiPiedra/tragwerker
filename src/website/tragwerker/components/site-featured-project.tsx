@@ -25,37 +25,37 @@ export function SiteFeaturedProject({ eyebrow, title, project }: SiteFeaturedPro
 
   return (
     <SiteReveal>
-      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
         <SectionHeading eyebrow={eyebrow} title={title} />
         <Link
           href={`/projekte/${project.slug}`}
           className="group mt-14 grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end lg:gap-16"
         >
-          <div className="relative aspect-[16/10] overflow-hidden bg-[var(--site-line)] lg:aspect-[5/3]">
+          <div className="site-media-frame relative aspect-[16/10] overflow-hidden bg-[var(--site-line)] lg:aspect-[5/3]">
             <CmsImage
               src={project.heroImageUrl ?? SITE_IMAGES.projectFallback}
               alt={project.name}
               fill
               sizes="(max-width: 1024px) 100vw, 60vw"
-              className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
             />
           </div>
           <div>
-            <p className="text-xs uppercase tracking-[0.24em] text-[var(--site-accent)]">
+            <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
               {[project.period, project.category].filter(Boolean).join(" · ")}
             </p>
-            <h3 className="mt-4 font-site-serif text-4xl leading-tight tracking-tight md:text-5xl">
+            <h3 className="mt-4 font-site-serif text-3xl leading-tight tracking-[-0.02em] md:text-4xl">
               {project.name}
             </h3>
-            <p className="mt-3 text-xs uppercase tracking-[0.18em] text-[var(--site-muted)]">
+            <p className="mt-3 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
               {project.location}
             </p>
             {(project.excerpt ?? project.description) ? (
-              <p className="mt-5 max-w-lg text-base leading-relaxed text-[var(--site-muted)] md:text-lg">
+              <p className="mt-5 max-w-[65ch] font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
                 {project.excerpt ?? project.description}
               </p>
             ) : null}
-            <span className="mt-8 inline-block text-xs uppercase tracking-[0.2em] underline underline-offset-4">
+            <span className="site-link mt-8 inline-flex min-h-11 items-center font-site-sans text-base font-extralight tracking-[-0.01em]">
               Projekt ansehen
             </span>
           </div>

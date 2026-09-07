@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 
 import { SITE_NAME } from "@/website/tragwerker/config";
-import { defaultTragwerksplanung } from "@/website/tragwerker/defaults/content";
+import { defaultTragwerksplanungPage } from "@/website/tragwerker/defaults/tragwerksplanung-page";
 import { SITE_IMAGES } from "@/website/tragwerker/images";
 import { buildEntityMetadata, buildStaticMetadata } from "@/website/tragwerker/metadata";
-import { getServiceBySlug, getServiceSections } from "@/website/tragwerker/queries";
-import { ServicePageTemplate } from "@/website/tragwerker/templates/service-page";
-import type { ServiceSections } from "@/website/tragwerker/types";
+import { getPublishedProjects, getServiceBySlug } from "@/website/tragwerker/queries";
+import { DisciplinePageTemplate } from "@/website/tragwerker/templates/discipline-page";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const service = await getServiceBySlug("tragwerksplanung");
   const fallback = {
     title: `Tragwerksplanung — ${SITE_NAME}`,
-    description: "Tragwerksplanung — Von der Vorbemessung bis zur Ausführung.",
+    description:
+      "Wir planen Tragwerke — präzise, materialgerecht und eng abgestimmt mit der Architektur.",
     path: "/tragwerksplanung",
   };
   if (service) return buildEntityMetadata("service", service.id, fallback);
@@ -22,32 +22,22 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TragwerksplanungPage() {
-  const data = await getServiceSections("tragwerksplanung");
-  const base = data?.sections ?? defaultTragwerksplanung;
-  const sections: ServiceSections = {
-    ...base,
-    intro: {
-      ...defaultTragwerksplanung.intro!,
-      imageUrl: undefined,
-    },
-    process: defaultTragwerksplanung.process,
-    deliverables: defaultTragwerksplanung.deliverables,
-    expertise: undefined,
-  };
+  const featured = await getPublishedProjects({ featured: true, limit: 12 });
+  const projects =
+    featured.length > 0 ? featured : await getPublishedProjects({ limit: 12 });
 
   return (
-    <ServicePageTemplate
-      title={data?.service.title ?? "Tragwerksplanung"}
-      summary="Von der Vorbemessung bis zur Ausführung."
+    <DisciplinePageTemplate
+      content={defaultTragwerksplanungPage}
       heroImageUrl={SITE_IMAGES.heroPlanning}
-      heroImageFallback={SITE_IMAGES.heroPlanning}
-      sections={sections}
-      cta={{
-        headline: "Projekt besprechen",
-        text: "Leistungsumfang, Schnittstellen und Termine klären wir am besten früh – idealerweise bereits im Vorentwurf.",
-        buttonLabel: "Kontakt aufnehmen",
-        email: data?.service.ctaEmail,
-      }}
+      projects={projects.map((project) => ({
+        slug: project.slug,
+        name: project.name,
+        excerpt: project.excerpt,
+        description: project.description,
+        location: project.location,
+        category: project.category,
+      }))}
     />
   );
 }

@@ -16,23 +16,23 @@ export function SiteHero({ eyebrow, title, intro, subintro, imageSrc, imageAlt }
       <section className="site-container grid gap-10 pb-20 pt-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end lg:gap-16">
         <div>
           {eyebrow ? (
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--site-accent)]">{eyebrow}</p>
+            <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">{eyebrow}</p>
           ) : null}
-          <h1 className="mt-6 whitespace-pre-line font-site-serif text-5xl leading-[0.95] tracking-tight md:text-7xl lg:text-8xl">
+          <h1 className="mt-6 whitespace-pre-line font-site-serif text-[2.125rem] leading-[1.12] tracking-[-0.02em] md:text-5xl lg:text-[3.5rem] lg:leading-[1.1]">
             {title}
           </h1>
           {intro ? (
-            <p className="mt-8 max-w-xl text-lg leading-relaxed text-[var(--site-muted)] md:text-xl">
+            <p className="mt-8 max-w-[40ch] font-site-sans text-lg font-extralight leading-relaxed text-[var(--site-muted)] md:text-xl">
               {intro}
             </p>
           ) : null}
           {subintro ? (
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-[var(--site-muted)] md:text-lg">
+            <p className="mt-5 max-w-[65ch] font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
               {subintro}
             </p>
           ) : null}
         </div>
-        <div className="relative aspect-[4/5] overflow-hidden bg-[var(--site-line)]">
+        <div className="site-media-frame relative aspect-[4/5] overflow-hidden bg-[var(--site-line)]">
           <CmsImage
             src={imageSrc}
             alt={imageAlt}

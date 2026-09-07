@@ -25,14 +25,19 @@ export default function KontaktPage() {
         intro="Für Anfragen, Kooperationen oder fachlichen Austausch stehen wir gerne zur Verfügung."
       />
       <SiteReveal>
-        <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+        <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
           <div className="site-grid items-start gap-y-12">
             <div className="site-grid-span-3">
-              <SectionHeading eyebrow="Erreichbarkeit" title="Büro & Kontakt" />
+              <SectionHeading eyebrow="Erreichbarkeit" title="Ansprechpartner" />
             </div>
-            <div className="site-grid-span-4 space-y-8 text-base leading-relaxed text-[var(--site-muted)]">
+            <div className="site-grid-span-4 space-y-12 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-ink)]">Büro</p>
+                <p className="text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-ink)]">
+                  Die Tragwerker GmbH
+                </p>
+                <p className="mt-2">Tragwerksplanung</p>
+                <p className="mt-1">Dr.-Ing. Niclas Rausch</p>
+                <p>Dipl.-Ing. (FH) Michael Knittler</p>
                 {addressLines.map((line) => (
                   <p key={line} className="mt-2">
                     {line}
@@ -40,14 +45,21 @@ export default function KontaktPage() {
                 ))}
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-ink)]">Telefon</p>
-                <a href={`tel:${SITE_PHONE.replace(/\s/g, "")}`} className="mt-2 block hover:underline">
+                <p className="text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-ink)]">
+                  Ingenieurbüro Dr. Rausch
+                </p>
+                <p className="mt-2">Baustatische Prüfung</p>
+                <p className="mt-1">Dr.-Ing. Martin Rausch</p>
+              </div>
+              <div>
+                <p className="text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-ink)]">Telefon</p>
+                <a href={`tel:${SITE_PHONE.replace(/\s/g, "")}`} className="site-link mt-2 inline-block">
                   {SITE_PHONE}
                 </a>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[var(--site-ink)]">E-Mail</p>
-                <a href={`mailto:${SITE_CONTACT_EMAIL}`} className="mt-2 block hover:underline">
+                <p className="text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-ink)]">E-Mail</p>
+                <a href={`mailto:${SITE_CONTACT_EMAIL}`} className="site-link mt-2 inline-block">
                   {SITE_CONTACT_EMAIL}
                 </a>
               </div>

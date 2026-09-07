@@ -18,14 +18,21 @@ export function SitePageHeading({
 }: SitePageHeadingProps) {
   return (
     <div className={cn(overlay && "mix-blend-difference", className)}>
-      <h1 className="max-w-none font-site-sans text-[1.75rem] font-normal leading-[1.25] tracking-[-0.02em] md:text-[2.25rem] lg:text-[2.75rem] lg:leading-[1.2]">
-        <span className={overlay ? "text-white/70" : "text-[var(--site-muted)]"}>{pageName}</span>{" "}
+      <h1 className="max-w-full min-w-0 break-words font-site-sans text-[1.75rem] font-normal leading-[1.25] tracking-[-0.02em] md:text-[2.25rem] lg:text-[2.75rem] lg:leading-[1.2]">
+        <span
+          className={cn(
+            "font-medium uppercase tracking-[0.06em]",
+            overlay ? "text-white/80" : "text-[var(--site-kicker)]"
+          )}
+        >
+          {pageName}
+        </span>{" "}
         <span className={overlay ? "text-white" : "text-[var(--site-ink)]"}>{headline}</span>
       </h1>
       {intro ? (
         <p
           className={cn(
-            "mt-6 max-w-3xl font-site-sans text-base font-extralight leading-relaxed md:mt-8 md:text-lg",
+            "mt-6 max-w-[65ch] font-site-sans text-base font-extralight leading-relaxed md:mt-8",
             overlay ? "text-white/65" : "text-[var(--site-muted)]"
           )}
         >
@@ -53,8 +60,8 @@ export function SitePageHeadingSection({
       className={cn(
         "site-container",
         placement === "underHero"
-          ? "border-t border-[var(--site-line)] py-16 md:py-24"
-          : "pb-12 pt-16 md:pb-16 md:pt-24",
+          ? "border-t border-[var(--site-line)] py-[var(--site-after-hero-y)]"
+          : "pb-12 pt-[var(--site-after-hero-y)] md:pb-16",
         className
       )}
     >

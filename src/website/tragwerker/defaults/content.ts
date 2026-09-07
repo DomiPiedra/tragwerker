@@ -4,32 +4,42 @@ import type { HomepageContent, PageSections, ServiceSections } from "@/website/t
 
 export const defaultHomepage: HomepageContent = {
   hero: {
-    eyebrow: "Strukturelles Engineering",
-    headline: "Tragwerke, die bleiben.",
-    subheadline: "Ingenieurkunst für München und darüber hinaus.",
+    eyebrow: "001 — INGENIEURBÜRO FÜR TRAGWERKSPLANUNG",
+    headline: "Drei Generationen Tragwerksplanung. Erfahrung, die trägt.",
+    subheadline: "Tragwerksplanung für Bauwerke, die dauerhaft funktionieren.",
     imageUrl: SITE_IMAGES.heroHome,
   },
   stats: [
-    { value: "Germering,\nbei München", label: "Standort", inverted: true },
+    { value: "Germering,\nbei München", label: "Standort" },
     { value: "1959", label: "gegründet" },
-    { value: "1400+", label: "Projekte in der Tragwerksplanung" },
-    { value: "2200+", label: "Projekte in der Baustatischen Planung" },
+    { value: "1.400+", label: "Projekte in der Tragwerksplanung" },
+    { value: "2.200+", label: "Projekte in der baustatischen Prüfung" },
   ],
   philosophy: {
-    eyebrow: "Arbeitsweise",
-    title: "Philosophie",
+    eyebrow: "004 — KONSTRUKTIVE HALTUNG",
+    title: "Über 66 Jahre konstruktive Erfahrung. Jedes Projekt neu gedacht.",
     paragraphs: [
-      "Wir entwickeln Tragwerke, die funktionieren, dauern und Raum für Architektur schaffen.",
-      "Strukturelle Integrität ist keine Frage von Kompromissen. Unsere Arbeit basiert auf analytischer Präzision, materialgerechtem Denken und dem Verständnis für konstruktive Klarheit.",
-      "Seit 2012 arbeiten wir eng mit Architekturbüros, Bauherren und Ausführenden zusammen — vom ersten Konzept bis zur letzten Schraube.",
+      "Seit über 67 Jahren entwickeln wir Tragwerke mit konstruktiver Klarheit, technischem Verständnis und dem Blick für wirtschaftliche und sichere Lösungen. Dabei entstehen präzise geplante Konstruktionen, die sich durch Dauerhaftigkeit, Wirtschaftlichkeit und Praxistauglichkeit auszeichnen.",
+      "Grundlage unserer Arbeit ist die enge Zusammenarbeit mit Architekten, Bauherren und Projektpartnern. Durch klare Kommunikation, sorgfältige Planung und langjährige Erfahrung schaffen wir Tragwerke, die technisch überzeugen und sich dauerhaft bewähren.",
+      "Seit 1959 stehen bei uns Dauerhaftigkeit, Verlässlichkeit und technisches Können im Mittelpunkt – heute in der dritten Generation. Aus dieser Erfahrung entstehen Tragwerke, die strukturell klar aufgebaut, normkonform nachgewiesen und über Jahrzehnte praxistauglich sind.",
+      "Die Grundlage dafür ist ein integraler Planungsansatz: Wir arbeiten eng mit Architekten, Bauherren und Fachplanern zusammen und stimmen statisches System, Materialwahl und konstruktive Details frühzeitig aufeinander ab.",
     ],
     focusAreas: [
-      "Kulturbauten",
-      "Brücken & Infrastruktur",
+      "Neubauten",
+      "Umbauten, Erweiterungen und Sanierungen im Bestand",
+      "Wohnungs-, Gewerbe- und Verwaltungsbau",
+      "Schulen, Sporthallen, Krankenhäuser und öffentliche Einrichtungen",
+      "Industrie- und Hallenbau",
+      "Stahlbeton- und Mauerwerksbau",
+      "Holzbau und Holzhybridbau",
+      "Stahl- und Verbundkonstruktionen",
+      "Nachhaltige Bauweisen",
+      "Baustatische Prüfung",
+      "Massivbau",
+      "Holz-Hybrid",
+      "Stahlbau",
       "Bestandsertüchtigung",
-      "Holzbau",
-      "Großspannweiten",
-      "Forschung & Lehre",
+      "Gründung",
     ],
     imageUrls: [SITE_IMAGES.homePhilosophy1, SITE_IMAGES.homePhilosophy2],
   },
@@ -54,31 +64,32 @@ export const defaultHomepage: HomepageContent = {
     },
   ],
   process: {
-    eyebrow: "Methodik",
-    title: "Prozess",
+    eyebrow: "005 — METHODIK",
+    title: "Strukturierte Tragwerksplanung von der ersten Idee bis zur Ausführung",
     steps: [
       {
         number: "01",
         title: "Analyse",
         description:
-          "Lastannahmen, Geometrie, Randbedingungen. Machbarkeitsstudie und erste Konzeptvarianten.",
+          "Wir analysieren die Anforderungen des Bauvorhabens, die konstruktiven Randbedingungen und das statische System als Grundlage für eine wirtschaftliche und sichere Tragwerksplanung.",
       },
       {
         number: "02",
         title: "Konzept",
         description:
-          "Tragwerksentwurf, Materialisierung, statisches System. Abstimmung mit Entwurfsplanung.",
+          "Wir entwickeln durchdachte Tragwerkskonzepte und stimmen Konstruktion, Materialwahl und statisches System frühzeitig mit Architekten und Fachplanern ab.",
       },
       {
         number: "03",
         title: "Planung",
-        description: "Statische Berechnung, Bemessung, Bewehrungsplanung. Koordination mit Fachplanern.",
+        description:
+          "Wir erstellen präzise statische Berechnungen, Detailplanungen und konstruktive Ausführungsunterlagen. Die Koordination mit allen Fachplanern ist dabei selbstverständlicher Bestandteil unserer Arbeit.",
       },
       {
         number: "04",
         title: "Umsetzung",
         description:
-          "Ausschreibung, Bauleitung, Qualitätssicherung. Dokumentation und Übergabe.",
+          "Während der Ausführung begleiten wir das Projekt mit technischer Abstimmung, konstruktiver Klarheit und sorgfältiger Qualitätssicherung.",
       },
     ],
   },
@@ -230,12 +241,13 @@ export const defaultTragwerksplanung: ServiceSections = {
 export const defaultPruefung: ServiceSections = {
   intro: {
     eyebrow: "Unabhängigkeit",
-    title: "Sicherheit durch unabhängige Prüfung",
+    title: "Technische Verantwortung und Qualitätssicherung",
     paragraphs: [
-      "Unabhängige Prüfung schafft Vertrauen in die statische Integrität eines Bauvorhabens.",
-      "Ob Neubau, Bestand oder Nutzungsänderung — unsere Prüfleistungen sichern Compliance und Qualitätssicherung.",
+      "Wir prüfen statische Berechnungen, Tragwerkskonzepte und konstruktive Details unabhängig und normkonform – als technische Qualitätssicherung für Bauherren, Architekten und Behörden.",
+      "Das Ingenieurbüro Dr. Rausch übernimmt die unabhängige Prüfung von Standsicherheitsnachweisen mit bauaufsichtlicher Anerkennung und langjähriger Erfahrung in der baustatischen Prüfung. Die Prüfung erfolgt dabei stets unabhängig und grundsätzlich getrennt von der Planung.",
+      "Prüfung bedeutet, Tragwerke dauerhaft sicher und konstruktiv nachvollziehbar zu machen.",
     ],
-    imageUrl: SITE_IMAGES.introPrecision,
+    imageUrl: SITE_IMAGES.abnahme,
     imagePosition: "right",
   },
   pruefleistungen: {
@@ -244,23 +256,23 @@ export const defaultPruefung: ServiceSections = {
     items: [
       {
         number: "01",
-        title: "Standsicherheit",
-        description: "Prüfung statischer Berechnungen und Nachweise nach Bauordnungsrecht.",
+        title: "Statische Berechnungen",
+        description: "Prüfung statischer Berechnungen, Tragwerkskonzepte und Normenkonformität.",
       },
       {
         number: "02",
-        title: "Planprüfung",
-        description: "Kontrolle der Ausführungsplanung und Bewehrungspläne.",
+        title: "Ausführungsplanung",
+        description: "Prüfung der Ausführungsplanung und konstruktiver Details.",
       },
       {
         number: "03",
-        title: "Tragwerksanalyse Bestand",
-        description: "Bewertung bei Nutzungsänderung, Umbauten oder Sanierungen.",
+        title: "Tragwerkskonzepte",
+        description: "Unabhängige Bewertung von Tragwerkskonzepten — von der Idee bis zur Umsetzung.",
       },
       {
         number: "04",
-        title: "Sondernachweise",
-        description: "Spezielle statische Nachweise für außergewöhnliche Lastfälle.",
+        title: "Ausführung",
+        description: "Qualitätssicherung auf der Baustelle als vollständiger Blick auf das Tragwerk.",
       },
     ],
   },

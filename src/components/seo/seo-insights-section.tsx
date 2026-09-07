@@ -130,12 +130,7 @@ export function SeoInsightsSection({
         title: seoContext.title,
         content: seoContext.content,
         headings,
-        existingMetadata: {
-          seoTitle: seo.seoTitle,
-          seoDescription: seo.seoDescription,
-          seoKeywords: seo.seoKeywords,
-          seoImage: seo.seoImage,
-        },
+        existingMetadata: seo,
       });
       if (!result.ok) {
         setError(result.error);

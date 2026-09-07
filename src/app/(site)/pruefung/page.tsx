@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const service = await getServiceBySlug("pruefung");
   const fallback = {
     title: `Prüfung — ${SITE_NAME}`,
-    description: "Unabhängige Prüfung von Tragwerken nach Landesbauordnung.",
+    description: "Unabhängige Prüfung von Tragwerken. Technische Verantwortung und Qualitätssicherung.",
     path: "/pruefung",
   };
   if (service) return buildEntityMetadata("service", service.id, fallback);
@@ -30,7 +30,7 @@ export default async function PruefungPage() {
       title={data?.service.title ?? "Prüfung"}
       summary={
         data?.service.summary ??
-        "Unabhängige Prüfung von Tragwerken nach Landesbauordnung — objektiv, normgerecht und termingerecht."
+        "Prüfung bedeutet, Tragwerke dauerhaft sicher und konstruktiv nachvollziehbar zu machen."
       }
       heroImageUrl={SITE_IMAGES.heroReview}
       heroImageFallback={SITE_IMAGES.heroReview}

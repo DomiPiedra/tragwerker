@@ -2,9 +2,7 @@ import {
   generateObject,
   generateText,
   streamText,
-  type CoreMessage,
-  type GenerateObjectResult,
-  type GenerateTextResult,
+  type ModelMessage,
 } from "ai";
 import type { z } from "zod";
 
@@ -18,7 +16,7 @@ type TextCallOptions = {
   tier: AIModelTier;
   system?: string;
   prompt?: string;
-  messages?: CoreMessage[];
+  messages?: ModelMessage[];
   temperature?: number;
 };
 
@@ -32,7 +30,12 @@ export async function generateTextWithFallback(
 
   for (const model of models) {
     try {
-      const result: GenerateTextResult = await generateText({ ...rest, model });
+      const result = await generateText({
+        model,
+        system: rest.system,
+        temperature: rest.temperature,
+        ...(rest.messages?.length ? { messages: rest.messages } : { prompt: rest.prompt ?? "" }),
+      });
       const text = result.text?.trim();
       if (text) return text;
     } catch (error) {
@@ -57,12 +60,14 @@ export async function generateObjectWithFallback<T extends z.ZodType>(options: {
 
   for (const model of models) {
     try {
-      const result: GenerateObjectResult<z.infer<T>> = await generateObject({
-        ...rest,
-        schema,
+      const result = await generateObject({
         model,
+        schema,
+        system: rest.system,
+        prompt: rest.prompt ?? "",
+        temperature: rest.temperature,
       });
-      return result.object;
+      return result.object as z.infer<T>;
     } catch (error) {
       if (!isRetryableAIError(error)) throw error;
     }
@@ -99,7 +104,12 @@ export async function streamTextWithFallback(
   for (const model of models) {
     try {
       let full = "";
-      const streamed = streamText({ ...rest, model });
+      const streamed = streamText({
+        model,
+        system: rest.system,
+        temperature: rest.temperature,
+        ...(rest.messages?.length ? { messages: rest.messages } : { prompt: rest.prompt ?? "" }),
+      });
       for await (const delta of streamed.textStream) {
         full += delta;
       }
@@ -107,7 +117,12 @@ export async function streamTextWithFallback(
         return { ok: true, text: full.trim() };
       }
 
-      const backup = await generateText({ ...rest, model });
+      const backup = await generateText({
+        model,
+        system: rest.system,
+        temperature: rest.temperature,
+        ...(rest.messages?.length ? { messages: rest.messages } : { prompt: rest.prompt ?? "" }),
+      });
       const text = backup.text?.trim();
       if (text) return { ok: true, text };
     } catch (error) {

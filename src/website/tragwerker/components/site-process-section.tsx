@@ -10,10 +10,10 @@ type SiteProcessSectionProps = {
 export function SiteProcessSection({ eyebrow, steps }: SiteProcessSectionProps) {
   return (
     <SiteReveal>
-      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
         <div className="site-grid items-start">
           {eyebrow ? (
-            <p className="site-grid-span-2 font-site-sans text-xs font-extralight uppercase tracking-[0.24em] text-[var(--site-ink)] md:text-sm">
+            <p className="site-grid-span-2 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
               {eyebrow}
             </p>
           ) : (
@@ -25,14 +25,14 @@ export function SiteProcessSection({ eyebrow, steps }: SiteProcessSectionProps) 
               <SiteReveal key={step.number} delay={index * 0.05}>
                 <article className="grid gap-4 py-8 md:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] md:gap-10 md:py-10 lg:gap-14">
                   <div>
-                    <p className="font-site-sans text-xs font-extralight tracking-[-0.01em] text-[var(--site-muted)] md:text-sm">
+                    <p className="font-site-sans text-xs font-extralight tracking-[0.2em] text-[var(--site-accent)]">
                       {step.number}
                     </p>
-                    <h3 className="mt-2 font-site-sans text-lg font-bold leading-snug tracking-[-0.02em] text-[var(--site-ink)] md:text-xl">
+                    <h3 className="mt-2 font-site-sans text-lg font-normal leading-snug tracking-[-0.02em] text-[var(--site-ink)] md:text-xl">
                       {step.title}
                     </h3>
                   </div>
-                  <p className="font-site-sans text-sm font-extralight leading-relaxed text-[var(--site-muted)] md:text-base">
+                  <p className="font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
                     {step.description}
                   </p>
                 </article>

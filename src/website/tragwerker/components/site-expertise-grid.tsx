@@ -11,7 +11,7 @@ type SiteExpertiseGridProps = {
 export function SiteExpertiseGrid({ eyebrow, title, items }: SiteExpertiseGridProps) {
   return (
     <SiteReveal>
-      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
         <SectionHeading eyebrow={eyebrow} title={title} />
         <div className="mt-16 grid gap-12 md:grid-cols-2 md:gap-x-16 md:gap-y-14 lg:gap-x-24">
           {items.map((item, index) => (
@@ -23,7 +23,7 @@ export function SiteExpertiseGrid({ eyebrow, title, items }: SiteExpertiseGridPr
                   </span>
                   <h3 className="font-site-serif text-2xl tracking-tight md:text-3xl">{item.title}</h3>
                 </div>
-                <p className="mt-4 text-base leading-relaxed text-[var(--site-muted)]">
+                <p className="mt-4 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
                   {item.description}
                 </p>
               </article>

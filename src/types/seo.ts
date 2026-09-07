@@ -1,5 +1,7 @@
 import type { ContentSeoEntityType } from "@/lib/seo/entity-types";
 
+export type { ContentSeoEntityType };
+
 /**
  * Reusable SEO payload stored separately from primary content fields.
  * Attach to any registered collection via entityType + entityId.

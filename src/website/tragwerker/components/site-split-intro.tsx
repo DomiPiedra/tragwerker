@@ -22,7 +22,7 @@ export function SiteSplitIntro({
   const copy = (
     <div className="flex flex-col justify-center">
       <SectionHeading eyebrow={eyebrow} title={title} />
-      <div className="mt-8 space-y-5 text-base leading-relaxed text-[var(--site-muted)] md:text-lg">
+      <div className="mt-8 max-w-[65ch] space-y-5 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
         {paragraphs.map((p) => (
           <p key={p.slice(0, 48)}>{p}</p>
         ))}
@@ -35,12 +35,12 @@ export function SiteSplitIntro({
 
     return (
       <SiteReveal>
-        <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+        <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
           <div className="site-grid items-start">
-            <p className="site-grid-span-2 font-site-sans text-xs font-extralight uppercase tracking-[0.24em] text-[var(--site-ink)] md:text-sm">
+            <p className="site-grid-span-2 font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">
               {label}
             </p>
-            <div className="site-grid-span-5 space-y-6 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)] md:text-lg">
+            <div className="site-grid-span-5 max-w-[65ch] space-y-6 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
               {paragraphs.map((p) => (
                 <p key={p.slice(0, 48)}>{p}</p>
               ))}
@@ -52,7 +52,7 @@ export function SiteSplitIntro({
   }
 
   const image = (
-    <div className="relative aspect-[4/5] overflow-hidden bg-[var(--site-line)] lg:aspect-[5/6]">
+    <div className="site-media-frame site-media-reveal relative aspect-[4/5] overflow-hidden bg-[var(--site-line)] lg:aspect-[5/6]">
       <CmsImage
         src={imageSrc}
         alt={imageAlt}
@@ -65,7 +65,7 @@ export function SiteSplitIntro({
 
   return (
     <SiteReveal>
-      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28">
+      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-20">
           {imagePosition === "left" ? (
             <>

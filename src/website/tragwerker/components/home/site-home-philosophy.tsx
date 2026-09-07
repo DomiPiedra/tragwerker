@@ -1,47 +1,83 @@
 import { CmsImage } from "@/website/tragwerker/components/cms-image";
+import { SiteReveal } from "@/website/tragwerker/components/site-reveal";
+import { SiteSectionLabel } from "@/website/tragwerker/components/site-section-label";
 
 type SiteHomePhilosophyProps = {
   title: string;
   paragraphs: string[];
-  imageUrls: [string, string];
+  focusAreas?: string[];
+  imageUrl: string;
+  index?: string;
+  label?: string;
 };
 
-export function SiteHomePhilosophy({ title, paragraphs, imageUrls }: SiteHomePhilosophyProps) {
-  return (
-    <section className="site-container py-16 md:py-24 lg:py-28">
-      <div className="grid gap-x-8 gap-y-0 lg:grid-cols-12 lg:gap-x-10">
-        <div className="lg:col-span-7">
-          <div className="relative aspect-[5/3] overflow-hidden bg-[var(--site-line)]">
-            <CmsImage
-              src={imageUrls[0]}
-              alt=""
-              fill
-              sizes="(max-width: 1024px) 100vw, 58vw"
-              className="object-cover"
-            />
-          </div>
-          <h2 className="mt-5 font-site-sans text-2xl font-extralight tracking-[-0.02em] text-[#b0b0b0] md:mt-6 md:text-[1.75rem] lg:text-3xl">
-            {title}
-          </h2>
-        </div>
+export function SiteHomePhilosophy({
+  title,
+  paragraphs,
+  focusAreas = [],
+  imageUrl,
+  index = "004",
+  label = "KONSTRUKTIVE HALTUNG",
+}: SiteHomePhilosophyProps) {
+  const [lead, ...rest] = paragraphs;
+  const mid = Math.ceil(focusAreas.length / 2);
+  const focusLeft = focusAreas.slice(0, mid);
+  const focusRight = focusAreas.slice(mid);
 
-        <div className="mt-10 lg:col-span-5 lg:mt-0 lg:flex lg:flex-col lg:items-end">
-          <div className="relative aspect-[4/3] w-full overflow-hidden bg-[var(--site-line)] lg:w-[90%]">
-            <CmsImage
-              src={imageUrls[1]}
-              alt=""
-              fill
-              sizes="(max-width: 1024px) 100vw, 34vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="mt-5 w-full space-y-4 font-site-sans text-sm font-extralight leading-relaxed text-[var(--site-muted)] md:mt-6 md:text-[0.9375rem] lg:w-[90%]">
-            {paragraphs.map((paragraph) => (
-              <p key={paragraph.slice(0, 48)}>{paragraph}</p>
-            ))}
+  return (
+    <SiteReveal>
+      <section className="py-20 md:py-28 lg:py-32">
+        <div className="site-container">
+          <SiteSectionLabel index={index} title={label} />
+
+          <div className="mt-8 bg-[var(--site-surface)] px-6 py-10 md:mt-10 md:px-10 md:py-14 lg:px-14 lg:py-16">
+            <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-x-16">
+              <div className="lg:col-span-6">
+                <h2 className="font-site-serif text-3xl font-normal tracking-[-0.02em] text-[var(--site-ink)] md:text-4xl">
+                  {title}
+                </h2>
+                {lead ? (
+                  <p className="mt-8 max-w-[65ch] font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)] md:mt-10">
+                    {lead}
+                  </p>
+                ) : null}
+                <div className="mt-4 space-y-4 font-site-sans text-base font-extralight leading-relaxed text-[var(--site-muted)]">
+                  {rest.map((paragraph) => (
+                    <p key={paragraph.slice(0, 48)}>{paragraph}</p>
+                  ))}
+                </div>
+
+                {focusAreas.length > 0 ? (
+                  <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-2 font-site-sans text-sm font-extralight text-[var(--site-ink)] md:mt-12">
+                    <ul className="space-y-2">
+                      {focusLeft.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                    <ul className="space-y-2">
+                      {focusRight.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="lg:col-span-6">
+                <div className="site-media-frame site-media-reveal relative aspect-[4/5] overflow-hidden bg-[var(--site-line)] md:aspect-[5/6]">
+                  <CmsImage
+                    src={imageUrl}
+                    alt=""
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 42vw"
+                    className="object-cover object-center"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </SiteReveal>
   );
 }

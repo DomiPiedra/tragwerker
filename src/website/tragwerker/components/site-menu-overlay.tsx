@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { SITE_HEADER_NAME } from "@/website/tragwerker/config";
@@ -21,6 +21,8 @@ export function SiteMenuOverlay({
   const pathname = usePathname();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const reduceMotion = useReducedMotion();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -28,6 +30,16 @@ export function SiteMenuOverlay({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    closeButtonRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (open) onClose();
@@ -50,10 +62,13 @@ export function SiteMenuOverlay({
       {open ? (
         <motion.div
           className="fixed inset-0 z-[60] overflow-hidden bg-[var(--site-paper)] text-[var(--site-ink)]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menü"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: reduceMotion ? 0 : 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="absolute inset-0" aria-hidden>
             <CmsImage
@@ -71,16 +86,17 @@ export function SiteMenuOverlay({
               <Link
                 href="/"
                 onClick={onClose}
-                className="font-site-sans text-lg tracking-[-0.01em] transition-opacity hover:opacity-70 md:text-xl"
+                className="font-site-sans text-lg font-extralight tracking-[-0.01em] site-link-quiet md:text-xl"
               >
                 {SITE_HEADER_NAME}
               </Link>
               <button
+                ref={closeButtonRef}
                 type="button"
                 onClick={onClose}
-                className="font-site-sans text-sm tracking-[-0.01em] transition-opacity hover:opacity-70 md:text-base"
+                className="min-h-11 font-site-sans text-base font-extralight tracking-[-0.01em] site-link-quiet"
               >
-                Close
+                Schließen
               </button>
             </div>
 
@@ -91,7 +107,7 @@ export function SiteMenuOverlay({
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "block font-site-sans text-[1.75rem] leading-tight tracking-[-0.02em] transition-opacity hover:opacity-60 md:text-[2rem]",
+                      "block font-site-sans text-[1.75rem] leading-tight tracking-[-0.02em] site-link-quiet md:text-[2rem]",
                       pathname === item.href && "opacity-50"
                     )}
                   >
@@ -110,7 +126,7 @@ export function SiteMenuOverlay({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Suche"
-                  className="w-full border-b border-[var(--site-ink)]/25 bg-transparent py-2 font-site-sans text-base outline-none placeholder:text-[var(--site-muted)] md:text-lg"
+                  className="w-full border-b border-[var(--site-line)] bg-transparent py-3 font-site-sans text-base font-extralight outline-none placeholder:text-[var(--site-muted)] md:text-lg"
                 />
               </form>
             </div>
@@ -118,14 +134,14 @@ export function SiteMenuOverlay({
             <footer className="mx-auto grid max-w-lg grid-cols-2 gap-10 pb-2 text-center sm:gap-16 md:gap-20">
               {MENU_FOOTER_NAV.map((group) => (
                 <div key={group.title}>
-                  <p className="font-site-sans text-sm text-[var(--site-muted)]">{group.title}</p>
-                  <ul className="mt-3 space-y-1.5">
+                  <p className="font-site-sans text-xs font-extralight uppercase tracking-[0.2em] text-[var(--site-muted)]">{group.title}</p>
+                  <ul className="mt-4 space-y-2">
                     {group.links.map((item) => (
                       <li key={item.href}>
                         <Link
                           href={item.href}
                           className={cn(
-                            "font-site-sans text-sm transition-opacity hover:opacity-60 md:text-base",
+                            "font-site-sans text-sm font-extralight site-link-quiet md:text-base",
                             pathname === item.href && "opacity-50"
                           )}
                         >
