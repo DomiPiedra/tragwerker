@@ -45,13 +45,14 @@ export function SiteHeader() {
               visible ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
             )}
           >
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2 md:gap-6 md:px-6 md:py-2.5">
+            <div className="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2 md:gap-6 md:px-6 md:py-2.5">
               <Link
                 href="/"
                 tabIndex={visible ? 0 : -1}
-                className="min-w-0 justify-self-start truncate font-site-sans text-sm font-extralight tracking-[-0.01em] text-[var(--site-ink)] transition-colors hover:text-[var(--site-accent)] md:text-base"
+                className="min-w-0 justify-self-start font-site-sans text-sm font-extralight tracking-[-0.01em] text-[var(--site-ink)] transition-colors hover:text-[var(--site-accent)] md:text-base"
               >
-                {SITE_HEADER_NAME}
+                <span className="block">{SITE_HEADER_NAME}</span>
+                <span className="mt-0.5 block text-xs md:text-sm">Ingenieurbüro Dr. Rausch</span>
               </Link>
 
               <div

@@ -20,8 +20,8 @@ const disciplines = [
 export function SiteHomeServices() {
   return (
     <SiteReveal>
-      <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
-        <SiteSectionLabel index="002" title="LEISTUNGEN" />
+      <section className="site-container py-20 md:py-28 lg:py-32">
+        <SiteSectionLabel index="003" title="LEISTUNGEN" />
         <h2 className="mt-4 font-site-serif text-3xl font-normal tracking-[-0.02em] text-[var(--site-ink)] md:text-4xl">
           Tragwerksplanung und Prüfung
         </h2>
@@ -34,8 +34,8 @@ export function SiteHomeServices() {
             <article
               key={item.href}
               className={cn(
-                "border-t border-[var(--site-line)] pt-8",
-                index > 0 && "md:border-l md:pl-12 md:ml-12 lg:pl-16 lg:ml-16"
+                "pt-8",
+                index > 0 && "md:pl-12 md:ml-12 lg:pl-16 lg:ml-16"
               )}
             >
               <Link href={item.href} className="site-link-quiet block font-site-sans text-[1.75rem] font-normal leading-[1.12] tracking-[-0.03em] text-[var(--site-ink)] md:text-[2.25rem]">

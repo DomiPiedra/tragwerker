@@ -32,7 +32,7 @@ export function SiteHomeProjects({
       <section className="site-container border-t border-[var(--site-line)] py-20 md:py-28 lg:py-32">
         <div className="mb-10 flex flex-col gap-6 md:mb-14 md:flex-row md:items-end md:justify-between">
           <div className="max-w-xl">
-            <SiteSectionLabel index="003" title="PROJEKTE" />
+            <SiteSectionLabel index="004" title="PROJEKTE" />
             <h2 className="mt-4 font-site-serif text-3xl font-normal tracking-[-0.02em] text-[var(--site-ink)] md:text-4xl">
               {title}
             </h2>

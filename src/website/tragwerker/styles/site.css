@@ -384,3 +384,19 @@
     width: 0.75rem;
   }
 }
+
+/* A continuous, quiet drawing underneath the public website. */
+.tragwerker-site { position: relative; isolation: isolate; }
+.tragwerker-site .site-blueprint {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.18;
+}
+.tragwerker-site .site-home-container {
+  max-width: 1920px;
+  padding-inline: clamp(1.5rem, 6vw, 8rem);
+}

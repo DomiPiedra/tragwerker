@@ -24,5 +24,5 @@ export const SITE_IMAGES = {
   stahlbau: "/site/stahlbau.jpg",
   abnahme: "/site/abnahme.jpg",
   bauueberwachung: "/site/bauueberwachung.jpg",
-  logoMark: "/site/logo-on-paper.png",
+  logoMark: "/site/logo-original.png",
 } as const;

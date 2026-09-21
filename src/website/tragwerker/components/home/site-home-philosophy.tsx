@@ -6,7 +6,7 @@ type SiteHomePhilosophyProps = {
   title: string;
   paragraphs: string[];
   focusAreas?: string[];
-  imageUrl: string;
+  imageUrls: string[];
   index?: string;
   label?: string;
 };
@@ -15,9 +15,9 @@ export function SiteHomePhilosophy({
   title,
   paragraphs,
   focusAreas = [],
-  imageUrl,
-  index = "004",
-  label = "KONSTRUKTIVE HALTUNG",
+  imageUrls,
+  index = "002",
+  label = "DREI GENERATIONEN",
 }: SiteHomePhilosophyProps) {
   const [lead, ...rest] = paragraphs;
   const mid = Math.ceil(focusAreas.length / 2);
@@ -30,9 +30,9 @@ export function SiteHomePhilosophy({
         <div className="site-container">
           <SiteSectionLabel index={index} title={label} />
 
-          <div className="mt-8 bg-[var(--site-surface)] px-6 py-10 md:mt-10 md:px-10 md:py-14 lg:px-14 lg:py-16">
+          <div className="mt-8 md:mt-10">
             <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-x-16">
-              <div className="lg:col-span-6">
+              <div className={imageUrls.length ? "lg:col-span-6" : "lg:col-span-9"}>
                 <h2 className="font-site-serif text-3xl font-normal tracking-[-0.02em] text-[var(--site-ink)] md:text-4xl">
                   {title}
                 </h2>
@@ -63,17 +63,22 @@ export function SiteHomePhilosophy({
                 ) : null}
               </div>
 
-              <div className="lg:col-span-6">
-                <div className="site-media-frame site-media-reveal relative aspect-[4/5] overflow-hidden bg-[var(--site-line)] md:aspect-[5/6]">
-                  <CmsImage
-                    src={imageUrl}
-                    alt=""
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 42vw"
-                    className="object-cover object-center"
-                  />
+              {imageUrls.length > 0 ? (
+                <div className="order-first grid gap-6 sm:grid-cols-2 lg:order-last lg:col-span-6 lg:grid-cols-1">
+                  {imageUrls.map((src, index) => (
+                    <div key={src} className="site-media-reveal overflow-hidden">
+                      <CmsImage
+                        src={src}
+                        alt={`Familie Rausch – drei Generationen Tragwerksplanung, Aufnahme ${index + 1}`}
+                        width={1600}
+                        height={1200}
+                        sizes="(max-width: 640px) 100vw, 50vw"
+                        className="h-auto w-full"
+                      />
+                    </div>
+                  ))}
                 </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>

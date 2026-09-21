@@ -16,10 +16,10 @@ export const defaultHomepage: HomepageContent = {
     { value: "2.200+", label: "Projekte in der baustatischen Prüfung" },
   ],
   philosophy: {
-    eyebrow: "004 — KONSTRUKTIVE HALTUNG",
-    title: "Über 66 Jahre konstruktive Erfahrung. Jedes Projekt neu gedacht.",
+    eyebrow: "002 — DREI GENERATIONEN",
+    title: "Drei Generationen. Konstruktive Erfahrung seit 1959.",
     paragraphs: [
-      "Seit über 67 Jahren entwickeln wir Tragwerke mit konstruktiver Klarheit, technischem Verständnis und dem Blick für wirtschaftliche und sichere Lösungen. Dabei entstehen präzise geplante Konstruktionen, die sich durch Dauerhaftigkeit, Wirtschaftlichkeit und Praxistauglichkeit auszeichnen.",
+      "Seit 1959 entwickeln wir Tragwerke mit konstruktiver Klarheit, technischem Verständnis und dem Blick für wirtschaftliche und sichere Lösungen. Dabei entstehen präzise geplante Konstruktionen, die sich durch Dauerhaftigkeit, Wirtschaftlichkeit und Praxistauglichkeit auszeichnen.",
       "Grundlage unserer Arbeit ist die enge Zusammenarbeit mit Architekten, Bauherren und Projektpartnern. Durch klare Kommunikation, sorgfältige Planung und langjährige Erfahrung schaffen wir Tragwerke, die technisch überzeugen und sich dauerhaft bewähren.",
       "Seit 1959 stehen bei uns Dauerhaftigkeit, Verlässlichkeit und technisches Können im Mittelpunkt – heute in der dritten Generation. Aus dieser Erfahrung entstehen Tragwerke, die strukturell klar aufgebaut, normkonform nachgewiesen und über Jahrzehnte praxistauglich sind.",
       "Die Grundlage dafür ist ein integraler Planungsansatz: Wir arbeiten eng mit Architekten, Bauherren und Fachplanern zusammen und stimmen statisches System, Materialwahl und konstruktive Details frühzeitig aufeinander ab.",
@@ -41,7 +41,8 @@ export const defaultHomepage: HomepageContent = {
       "Bestandsertüchtigung",
       "Gründung",
     ],
-    imageUrls: [SITE_IMAGES.homePhilosophy1, SITE_IMAGES.homePhilosophy2],
+    // Add the approved family photographs through the homepage editor.
+    imageUrls: ["", ""],
   },
   highlights: [
     {

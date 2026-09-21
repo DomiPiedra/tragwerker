@@ -101,7 +101,7 @@ export function SiteLogoFlight({ hidden = false, onProgress }: SiteLogoFlightPro
   return (
     <div
       ref={logoRef}
-      className="pointer-events-none fixed left-0 top-0 z-[51] opacity-0 will-change-transform"
+      className="pointer-events-none fixed left-0 top-0 z-[51] opacity-0 will-change-transform mix-blend-multiply"
       style={{ width: 56, height: 56 }}
     >
       <Link
